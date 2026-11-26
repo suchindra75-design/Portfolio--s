@@ -239,33 +239,6 @@ export function buildWeb({ at, mobile }: Layout): WebData {
     strands.push({ pts: sagLine(top, bottom, 0.004, 16), o: { width: 0.65, bright: 0.38, start: 0.35 + i * 0.12, dur: 1.2 } });
   });
 
-  // descent (Phase 3): long silk threads that carry the web on down past the hero, so the camera
-  // can keep descending through the same environment behind the projects. Sparse on purpose: a
-  // few lines at different depths, with an occasional sagging cross-thread between neighbours.
-  const DEPTH = 52; // world units below the hero
-  const descent = mobile
-    ? [[0.06, -5], [0.32, -11], [0.72, -7], [0.94, -4]]
-    : [[0.04, -4], [0.17, -10], [0.3, -6.5], [0.64, -13], [0.79, -5.5], [0.9, -9], [0.97, -3.2]];
-  const lines: V3[][] = descent.map(([sx, z], i) => {
-    const top = at(sx, 0.55 + (i % 3) * 0.12, z);
-    const drift = (rnd() - 0.5) * 3;
-    const pts: V3[] = [];
-    for (let k = 0; k <= 44; k++) {
-      const u = k / 44;
-      pts.push([top[0] + drift * u + Math.sin(u * 5 + i) * 0.35, top[1] - u * DEPTH, top[2] + Math.sin(u * 3 + i * 2) * 0.6]);
-    }
-    strands.push({ pts, o: { width: 0.7, bright: 0.78, start: 1.3 + i * 0.12, dur: 2.6 } });
-    return pts;
-  });
-  for (let i = 0; i < lines.length - 1; i++) {
-    for (let y = 5 + (i % 2) * 3.5; y < DEPTH - 4; y += 8.5 + rnd() * 4) {
-      const k = Math.round((y / DEPTH) * 44);
-      const a = lines[i][k], b = lines[i + 1][Math.min(44, k + Math.round((rnd() - 0.5) * 6))];
-      if (Math.abs(a[2] - b[2]) > 7) continue; // too far apart in depth to read as one web
-      strands.push({ pts: sagLine(a, b, 0.07 + rnd() * 0.05, 10), o: { width: 0.6, bright: 0.42, start: 2.0 + i * 0.1, dur: 1.2 } });
-    }
-  }
-
   // foreground: defocused strands close to the camera, only at the edges
   const fg = mobile
     ? [[[-0.05, 0.62], [0.24, 1.08]], [[0.8, -0.05], [1.08, 0.3]]]

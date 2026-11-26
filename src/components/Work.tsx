@@ -1,175 +1,231 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { getImageProps } from "next/image";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { preload } from "react-dom";
 import { projects } from "@/content/projects";
 import { Chip } from "./Evidence";
+import { Atlas } from "./showcase/Atlas";
 import { ProjectFrame } from "./showcase/frames";
 
 /**
- * THE WORK, as six chapters in one continuous night (Phase 3, docs/interactive/PHASE3-CONTINUOUS.md).
- * No selector: the page simply scrolls on from the portrait into the work while the web recedes
- * behind it (<Continuum>). Each project is an editorial chapter composed for what it is, around
- * its real screen, with a clear way into the case study. A thin thread on the left shows where
- * you are and jumps between chapters. Media opens as it enters, once; nothing is pinned.
+ * THE WORK: the connected atlas (docs/interactive/PHASE2-SHOWCASE.md).
+ * Left, the atlas: six destinations on one web, and a numbered index (the keyboard and
+ * screen-reader route: a tab list). Right, the stage: the selected project's frame, composed for
+ * that project around its real screen, then the one-line, the spec and the way in. Arrows, Home,
+ * End move; Enter opens the case study; on phones, swipe the frame or tap a number.
  */
 const N = projects.length;
 const builds = projects.filter((p) => !p.evidence.includes("concept")).length;
-const WORDS = ["zero", "one", "two", "three", "four", "five", "six"];
-const cap = (w: string) => w[0].toUpperCase() + w.slice(1);
+const two = (n: number) => String(n).padStart(2, "0");
+const SIZES = "(min-width:1024px) 60vw, 100vw";
+
+/** Warm a project's screen at the size the stage will ask for. */
+function warm(k: number) {
+  const s = projects[(k + N) % N].screen;
+  if (!s) return;
+  const { props } = getImageProps({ src: s.src, alt: "", fill: true, sizes: SIZES });
+  preload(props.src as string, { as: "image", imageSrcSet: props.srcSet, imageSizes: SIZES, fetchPriority: "low" });
+}
 
 export function Work() {
-  const section = useRef<HTMLElement>(null);
-  const [active, setActive] = useState(0);
-  const [inView, setInView] = useState(false);
+  const [i, setI] = useState(0);
+  const [hover, setHover] = useState(-1);
+  const [dir, setDir] = useState(1);
+  const router = useRouter();
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
+  const stage = useRef<HTMLDivElement>(null);
+  const p = projects[i];
 
-  useEffect(() => {
-    const el = section.current!;
-    const chapters = [...el.querySelectorAll<HTMLElement>("[data-chapter]")];
-    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    // which chapter holds the middle of the screen
-    const spy = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.isIntersecting && setActive(Number((e.target as HTMLElement).dataset.chapter))),
-      { rootMargin: "-45% 0px -50% 0px" },
-    );
-    // open each chapter's media once as it arrives (only if motion is allowed and JS is running:
-    // without either, everything is simply visible)
-    const reveal = new IntersectionObserver(
-      (entries) =>
-        entries.forEach((e) => {
-          if (!e.isIntersecting) return;
-          (e.target as HTMLElement).dataset.reveal = "in";
-          reveal.unobserve(e.target);
-        }),
-      { rootMargin: "0px 0px -12% 0px" },
-    );
-    chapters.forEach((c) => {
-      spy.observe(c);
-      if (!reduce) {
-        c.dataset.reveal = "wait";
-        reveal.observe(c);
-      }
+  const select = useCallback((n: number, focus = false) => {
+    const k = (n + N) % N;
+    setI((cur) => {
+      if (k !== cur) setDir(k > cur ? 1 : -1);
+      return k;
     });
-
-    // thread progress through the work; the thread only shows once the work holds the screen
-    // (never over the hero's own text, never over the About section)
-    let raf = 0, on = false;
-    const progress = () => {
-      raf = 0;
-      const r = el.getBoundingClientRect();
-      const p = Math.min(1, Math.max(0, (innerHeight * 0.5 - r.top) / r.height));
-      el.style.setProperty("--pj-progress", p.toFixed(4));
-      const now = r.top < innerHeight * 0.3 && r.bottom > innerHeight * 0.65;
-      if (now !== on) { on = now; setInView(now); }
-    };
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(progress); };
-    addEventListener("scroll", onScroll, { passive: true });
-    progress();
-
-    // a small perspective shift toward the pointer on the media (desktop, motion allowed)
-    const fine = matchMedia("(pointer: fine)").matches && !reduce;
-    const media = [...el.querySelectorAll<HTMLElement>(".pj-media")];
-    const move = (e: PointerEvent) => {
-      const m = e.currentTarget as HTMLElement, r = m.getBoundingClientRect();
-      m.style.setProperty("--ry", `${(((e.clientX - r.left) / r.width - 0.5) * 3).toFixed(2)}deg`);
-      m.style.setProperty("--rx", `${(((e.clientY - r.top) / r.height - 0.5) * -2.2).toFixed(2)}deg`);
-    };
-    const leave = (e: PointerEvent) => {
-      const m = e.currentTarget as HTMLElement;
-      m.style.setProperty("--ry", "0deg");
-      m.style.setProperty("--rx", "0deg");
-    };
-    if (fine) media.forEach((m) => { m.addEventListener("pointermove", move); m.addEventListener("pointerleave", leave); });
-
-    return () => {
-      spy.disconnect();
-      reveal.disconnect();
-      removeEventListener("scroll", onScroll);
-      cancelAnimationFrame(raf);
-      if (fine) media.forEach((m) => { m.removeEventListener("pointermove", move); m.removeEventListener("pointerleave", leave); });
-    };
+    warm(k + 1);
+    warm(k - 1);
+    if (focus) tabs.current[k]?.focus();
   }, []);
 
+  const onKey = (e: React.KeyboardEvent) => {
+    const map: Record<string, number> = { ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: N - 1 };
+    if (e.key in map) {
+      e.preventDefault();
+      select(map[e.key], true);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      router.push(`/work/${p.slug}`);
+    }
+  };
+
+  // swipe the frame on touch screens (vertical scrolling stays native)
+  useEffect(() => {
+    const el = stage.current!;
+    let x0 = 0, y0 = 0, id = -1;
+    const down = (e: PointerEvent) => { if (e.pointerType === "mouse") return; x0 = e.clientX; y0 = e.clientY; id = e.pointerId; };
+    const up = (e: PointerEvent) => {
+      if (e.pointerId !== id) return;
+      id = -1;
+      const dx = e.clientX - x0, dy = e.clientY - y0;
+      if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+        el.dataset.swiped = "1"; // the tap that ends a swipe must not open the case study
+        window.setTimeout(() => delete el.dataset.swiped, 400);
+        select(i + (dx < 0 ? 1 : -1));
+      }
+    };
+    el.addEventListener("pointerdown", down);
+    el.addEventListener("pointerup", up);
+    return () => { el.removeEventListener("pointerdown", down); el.removeEventListener("pointerup", up); };
+  }, [i, select]);
+
+  // a small perspective shift toward the pointer (desktop, motion allowed)
+  useEffect(() => {
+    const el = stage.current!;
+    if (!matchMedia("(pointer: fine)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const move = (e: PointerEvent) => {
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--ry", `${(((e.clientX - r.left) / r.width - 0.5) * 3).toFixed(2)}deg`);
+      el.style.setProperty("--rx", `${(((e.clientY - r.top) / r.height - 0.5) * -2.4).toFixed(2)}deg`);
+    };
+    const leave = () => { el.style.setProperty("--ry", "0deg"); el.style.setProperty("--rx", "0deg"); };
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerleave", leave);
+    return () => { el.removeEventListener("pointermove", move); el.removeEventListener("pointerleave", leave); };
+  }, []);
+
+  const concept = p.evidence.includes("concept");
+
   return (
-    <section ref={section} id="work" aria-labelledby="work-title" className="pj relative z-[1]">
-      <header className="pj-intro">
-        <p className="label text-dim">Selected work</p>
-        <h2 id="work-title" className="display pj-intro__title">
-          Every line <em>connects.</em>
-        </h2>
-        <p className="pj-intro__count">
-          {cap(WORDS[N])} projects: {WORDS[builds]} builds and {WORDS[N - builds]} concept.
-        </p>
-        <p className="pj-intro__lede">Each one opens into a full case study: what it is, what I did, the hard part and its honest status.</p>
+    <section id="work" aria-labelledby="work-title" className="sc relative overflow-hidden bg-void px-5 pb-24 pt-28 md:px-10 md:pb-32 md:pt-40">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(50% 40% at 70% 45%, rgba(122,21,18,0.22), transparent 70%)" }} />
+
+      {/* Intro */}
+      <header className="relative grid gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:items-end">
+        <div>
+          <p className="label verse-caption text-dim">The work · the main body of it</p>
+          <h2 id="work-title" className="display mt-5 text-[clamp(52px,7.2vw,112px)] text-text">
+            Every line <em>connects.</em>
+          </h2>
+        </div>
+        <div className="sc-count lg:justify-self-end lg:text-right">
+          <p className="label text-silver">
+            <span className="sc-count__n">{two(N)}</span> projects <span className="text-dim">·</span> <span className="sc-count__n">{two(builds)}</span> builds <span className="text-dim">·</span> <span className="sc-count__n">{two(N - builds)}</span> concept
+          </p>
+          <p className="mt-3 max-w-[26rem] text-[15px] leading-[1.55] text-dim lg:ml-auto">Pick a thread. Every project opens into a full case study: what it is, what I did, the hard part and the honest status.</p>
+        </div>
       </header>
 
-      {/* the thread: where you are in the work, and a way to jump (desktop) */}
-      <nav aria-label="Projects" className="pj-thread" data-on={inView || undefined}>
-        <span aria-hidden="true" className="pj-thread__line" />
-        <ol>
-          {projects.map((p, k) => (
-            <li key={p.slug}>
-              <a href={`#project-${p.slug}`} aria-current={k === active ? "true" : undefined} className="pj-thread__node">
-                <span className="pj-thread__num">{p.index}</span>
-                <span className="pj-thread__name">{p.title}</span>
-              </a>
-            </li>
-          ))}
-        </ol>
-      </nav>
+      <div className="relative mt-14 grid grid-cols-[minmax(0,1fr)] gap-10 lg:mt-20 lg:grid-cols-[minmax(0,0.52fr)_minmax(0,1fr)] lg:gap-14">
+        {/* The atlas and the index */}
+        <div className="sc-nav min-w-0 lg:sticky lg:top-28 lg:self-start">
+          <div className="hidden px-2 lg:block">
+            <Atlas active={i} hover={hover} onHover={setHover} onSelect={(k) => select(k)} />
+          </div>
+          <ul role="tablist" aria-label="Projects" aria-orientation="vertical" onKeyDown={onKey} className="sc-index -mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] lg:mx-0 lg:mt-4 lg:block lg:overflow-visible lg:px-0">
+            {projects.map((q, k) => (
+              <li key={q.slug} className="flex-none lg:flex-auto">
+                <button
+                  ref={(el) => { tabs.current[k] = el; }}
+                  type="button"
+                  role="tab"
+                  id={`work-tab-${k}`}
+                  aria-selected={k === i}
+                  aria-controls="work-panel"
+                  tabIndex={k === i ? 0 : -1}
+                  onClick={() => select(k)}
+                  onPointerEnter={() => { setHover(k); warm(k); }}
+                  onPointerLeave={() => setHover(-1)}
+                  onFocus={() => warm(k)}
+                  data-active={k === i || undefined}
+                  data-hover={k === hover || undefined}
+                  className={`sc-tab ${q.evidence.includes("concept") ? "is-concept" : ""}`}
+                >
+                  <span className="sc-tab__num">{q.index}</span>
+                  <span className="sc-tab__title">{q.title}</span>
+                  <span className="sc-tab__status">{q.status}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="label mt-4 hidden text-dim lg:block">Arrow keys move · Enter opens</p>
+        </div>
 
-      <ol className="pj-chapters">
-        {projects.map((p, k) => {
-          const concept = p.evidence.includes("concept");
-          return (
-            <li key={p.slug} id={`project-${p.slug}`} data-chapter={k} className={`pj-ch pj-ch--${p.slug}`} aria-labelledby={`pj-title-${p.slug}`}>
-              <Link href={`/work/${p.slug}`} tabIndex={-1} aria-hidden="true" className="pj-media">
-                <ProjectFrame p={p} />
-              </Link>
+        {/* The stage */}
+        <div id="work-panel" role="tabpanel" aria-labelledby={`work-tab-${i}`} className="min-w-0">
+          <div ref={stage} className="sc-stage" style={{ ["--dir" as string]: dir }}>
+            <Link
+              href={`/work/${p.slug}`}
+              tabIndex={-1}
+              aria-hidden="true"
+              onClick={(e) => { if (stage.current?.dataset.swiped) e.preventDefault(); }}
+              className="sc-stage__link block"
+              key={p.slug}
+            >
+              <ProjectFrame p={p} />
+            </Link>
+          </div>
 
-              <div className="pj-text">
-                <p className="pj-kicker">
-                  <span className="pj-kicker__num">{p.index}</span>
-                  <span>{p.category}</span>
-                </p>
-                <h3 id={`pj-title-${p.slug}`} className="display pj-title">
-                  {p.title}
-                </h3>
-                <p className="display pj-tagline">{p.tagline}</p>
-                <p className="pj-one">{p.oneLine}</p>
-                <dl className="pj-spec">
-                  <div>
-                    <dt>Status</dt>
-                    <dd className={concept ? "text-text" : undefined}>{p.status}</dd>
-                  </div>
-                  <div>
-                    <dt>My part</dt>
-                    <dd>{p.eight.did}</dd>
-                  </div>
-                  <div>
-                    <dt>Stack</dt>
-                    <dd>
-                      {p.stack.slice(0, 5).join(" · ")}
-                      {p.stack.length > 5 && <span className="text-dim"> · +{p.stack.length - 5} more</span>}
-                    </dd>
-                  </div>
-                </dl>
-                <div className="pj-chips">
-                  {p.evidence.map((e) => (
-                    <Chip key={e} kind={e}>
-                      {e === "upstream" && p.fork ? `Built on ${p.fork.of} · ${p.fork.by}` : undefined}
-                    </Chip>
-                  ))}
+          <div key={`d-${p.slug}`} className="sc-detail mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] xl:gap-12">
+            <div>
+              <p className="label text-dim">
+                <span className="text-red-text">[{p.index}]</span> · {p.category}
+              </p>
+              <h3 aria-live="polite" className="display title-light mt-3 text-[clamp(44px,5.2vw,88px)]">
+                {p.title}
+              </h3>
+              <p className="display mt-3 text-[clamp(22px,2vw,30px)] italic text-text">{p.tagline}</p>
+              <p className="mt-5 max-w-[34rem] text-[17px] leading-[1.55] text-silver">{p.oneLine}</p>
+            </div>
+            <div>
+              <dl className="sc-spec">
+                <div>
+                  <dt>Status</dt>
+                  <dd className={concept ? "text-text" : undefined}>{p.status}</dd>
                 </div>
-                <Link href={`/work/${p.slug}`} className="pj-cta">
-                  Explore the case study<span className="sr-only">: {p.title}</span> <span aria-hidden="true">→</span>
-                </Link>
+                <div>
+                  <dt>My part</dt>
+                  <dd>{p.eight.did}</dd>
+                </div>
+                <div>
+                  <dt>Stack</dt>
+                  <dd>
+                    {p.stack.slice(0, 6).join(" · ")}
+                    {p.stack.length > 6 && <span className="text-dim"> · +{p.stack.length - 6} more in the case study</span>}
+                  </dd>
+                </div>
+              </dl>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {p.evidence.map((k) => (
+                  <Chip key={k} kind={k}>
+                    {k === "upstream" && p.fork ? `Built on ${p.fork.of} · ${p.fork.by}` : undefined}
+                  </Chip>
+                ))}
               </div>
-            </li>
-          );
-        })}
-      </ol>
+            </div>
+          </div>
+
+          <div className="mt-10 flex flex-wrap items-center justify-between gap-6 border-t hairline pt-6">
+            <Link href={`/work/${p.slug}`} className="sc-cta">
+              Open the case study<span className="sr-only">: {p.title}</span> <span aria-hidden="true">→</span>
+            </Link>
+            <div className="flex items-center gap-4">
+              <button type="button" onClick={() => select(i - 1, true)} className="sc-arrow" aria-label={`Previous project: ${projects[(i - 1 + N) % N].title}`}>
+                <span aria-hidden="true">←</span>
+              </button>
+              <span className="label text-silver" aria-hidden="true">
+                <span className="text-text">{p.index}</span> / {two(N)}
+              </span>
+              <button type="button" onClick={() => select(i + 1, true)} className="sc-arrow" aria-label={`Next project: ${projects[(i + 1) % N].title}`}>
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </div>
+          <p className="label mt-4 text-dim lg:hidden">Swipe the frame or tap a number</p>
+        </div>
+      </div>
     </section>
   );
 }
