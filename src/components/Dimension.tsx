@@ -8,26 +8,23 @@ import { useEffect, useState } from "react";
  *                boxes, SFX, motion on twos). The default, by the owner's choice (2026-11-26).
  *   Earth-Prime: the approved cinematic night edition. See docs/interactive/PLAN.md.
  *
- * The dimension lives on <html data-verse>. A tiny inline script in the layout applies it before
- * paint (the Verse unless this visit chose Prime), so a load never flashes the other dimension.
- * Without JavaScript the page stays in Earth-Prime, which needs none.
+ * The dimension lives on <html data-verse>. A tiny inline script in the layout sets the Verse before
+ * paint on every full load, so every link to the site shows the same thing first. A jump to
+ * Earth-Prime holds while you move around the site (client navigation keeps the attribute) and is
+ * not remembered across reloads. Without JavaScript the page stays in Earth-Prime.
  */
-export const KEY = "swing-shift:verse";
 const HINTED = "swing-shift:hinted";
 export const DIMENSION_EVENT = "swing-shift:dimension";
 
 export const isVerse = () => typeof document !== "undefined" && document.documentElement.dataset.verse === "1";
 
-/** Inline, pre-paint: the Verse by default, Earth-Prime only if this visit switched to it. */
-export const dimensionBootScript = `(function(){var v=null;try{v=sessionStorage.getItem(${JSON.stringify(KEY)})}catch(e){}if(v!=="0")document.documentElement.dataset.verse="1"})()`;
+/** Inline, pre-paint: every full load opens in the Verse. */
+export const dimensionBootScript = `document.documentElement.dataset.verse="1"`;
 
 function set(on: boolean) {
   const html = document.documentElement;
   if (on) html.dataset.verse = "1";
   else delete html.dataset.verse;
-  try {
-    sessionStorage.setItem(KEY, on ? "1" : "0");
-  } catch {}
   window.dispatchEvent(new CustomEvent(DIMENSION_EVENT, { detail: on }));
 }
 
@@ -97,7 +94,7 @@ export function DimensionRoot() {
     let t1 = 0, t2 = 0, t3 = 0;
     let seen = true;
     try {
-      seen = sessionStorage.getItem(HINTED) === "1" || sessionStorage.getItem(KEY) !== null;
+      seen = sessionStorage.getItem(HINTED) === "1";
     } catch {}
     if (!seen && location.pathname === "/") {
       const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
