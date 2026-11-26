@@ -250,33 +250,6 @@ body {
   mix-blend-mode: multiply;
 }
 
-/* Work: towers on a dark skyline */
-.tower {
-  transition: border-color 0.35s ease, box-shadow 0.35s ease, background-color 0.35s ease;
-}
-.tower[data-active="true"] {
-  border-color: rgba(227, 38, 43, 0.55);
-  box-shadow: 0 0 0 1px rgba(227, 38, 43, 0.25), -30px 10px 90px -30px rgba(227, 38, 43, 0.45);
-  background-color: #110909;
-}
-.tower img {
-  transition: filter 0.4s ease, opacity 0.4s ease;
-  filter: grayscale(0.85) brightness(0.55);
-}
-.tower[data-active="true"] img {
-  filter: none;
-}
-.strand {
-  transition: stroke 0.35s ease, stroke-opacity 0.35s ease;
-}
-@media (prefers-reduced-motion: reduce) {
-  .tower,
-  .tower img,
-  .strand {
-    transition: none;
-  }
-}
-
 @media (min-width: 768px) {
   html { scroll-padding-top: 96px; }
 }
@@ -541,31 +514,6 @@ html[data-verse] .chip {
 html[data-verse] .link-underline { background-size: 100% 3px; }
 html[data-verse] .link-underline:hover { color: var(--verse-yellow); }
 
-/* Rooftops become comic panels */
-html[data-verse] .tower {
-  border: 3px solid var(--verse-paper) !important;
-  background: var(--verse-ink) !important;
-  transition: transform 0.2s steps(2), box-shadow 0.2s steps(2);
-}
-/* a concept stays dashed in every dimension */
-html[data-verse] .tower.border-dashed { border-style: dashed !important; }
-html[data-verse] .tower[data-active="true"] {
-  transform: translate(-5px, -5px) rotate(-0.6deg);
-  box-shadow: 9px 9px 0 var(--color-red), 9px 9px 0 3px var(--verse-ink);
-}
-html[data-verse] .tower img { filter: grayscale(1) contrast(1.5) brightness(0.7); }
-html[data-verse] .tower[data-active="true"] img { filter: contrast(1.2) saturate(1.35); }
-html[data-verse] .tower-shot::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(circle, rgb(0 0 0 / 0.22) 1px, transparent 1.4px) 0 0 / 4px 4px;
-  mix-blend-mode: multiply;
-}
-html[data-verse] .strand { stroke: #fff; stroke-opacity: 0.5; stroke-width: 2; }
-html[data-verse] .strand[stroke="var(--color-red)"] { stroke: var(--verse-yellow); stroke-opacity: 1; stroke-width: 3; }
-
 /* Screens become panels */
 html[data-verse] .lit-window {
   border: 3px solid var(--verse-paper);
@@ -622,7 +570,7 @@ html[data-verse] .portrait-frame {
   opacity: 1;
 }
 
-/* ══ TOOLKIT PASS (26 Nov 2026): smooth scroll, page transitions, the 3D skyline ═══════════════ */
+/* ══ TOOLKIT PASS (26 Nov 2026): smooth scroll, page transitions (the 3D skyline was retired in Phase 2) ═══ */
 
 /* Lenis (lenis/dist/lenis.css): the page keeps its native scrollbar; Lenis only eases it */
 html.lenis,
@@ -673,25 +621,200 @@ html[data-verse]::view-transition-new(.page) {
   html[data-verse]::view-transition-new(.page) { animation: none; }
 }
 
-/* The 3D skyline behind the work: fades in once drawn, never covers the words on the left */
-.skyline-stage {
-  opacity: 0;
-  transition: opacity 1.4s ease;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 70%, transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 70%, transparent 100%);
+/* ══ PHASE 2: THE CONNECTED ATLAS (docs/interactive/PHASE2-SHOWCASE.md) ═══════════════════════
+   The atlas (SVG web), the numbered index, the stage (one frame per project, composed around its
+   real screen) and the spec. Same tokens as the rest of the site; crimson only for selection. */
+.sc-count__n { font-family: var(--font-serif); font-size: 1.9em; color: var(--color-text); letter-spacing: 0; vertical-align: -0.12em; margin-right: 0.15em; }
+
+/* atlas */
+.atlas { overflow: visible; }
+.atlas-radial { stroke: rgb(236 231 226 / 0.1); stroke-width: 0.7; }
+.atlas-radial--main { stroke: rgb(236 231 226 / 0.2); }
+.atlas-ring { fill: none; stroke: rgb(236 231 226 / 0.13); stroke-width: 0.7; }
+.atlas-frame { fill: none; stroke: rgb(236 231 226 / 0.22); stroke-width: 0.8; }
+.atlas-frame.is-dashed, .atlas-active.is-dashed { stroke-dasharray: 3 4; }
+.atlas-active {
+  stroke: var(--color-red); stroke-width: 1.4;
+  stroke-dasharray: 1; stroke-dashoffset: 1;
+  animation: atlas-draw 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
 }
-.skyline-stage[data-ready] { opacity: 0.9; }
+.atlas-active.is-dashed { animation: none; stroke-dashoffset: 0; }
+@keyframes atlas-draw { to { stroke-dashoffset: 0; } }
+.atlas-preview { stroke: rgb(236 231 226 / 0.5); stroke-width: 0.9; }
+.atlas-hub { fill: var(--color-text); }
+.atlas-node { cursor: pointer; }
+.atlas-hit { fill: transparent; }
+.atlas-halo { fill: none; stroke: rgb(236 231 226 / 0); stroke-width: 1; transition: stroke 0.25s ease, r 0.25s ease; }
+.atlas-dot { fill: #0b0b0c; stroke: rgb(236 231 226 / 0.75); stroke-width: 1.2; transition: fill 0.25s ease, stroke 0.25s ease; }
+.atlas-node.is-concept .atlas-dot { stroke-dasharray: 2 2; }
+.atlas-node.is-hover .atlas-halo { stroke: rgb(236 231 226 / 0.45); }
+.atlas-node.is-active .atlas-dot { fill: var(--color-red); stroke: var(--color-red); }
+.atlas-node.is-active .atlas-halo { stroke: rgb(227 38 43 / 0.6); }
+.atlas-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; fill: var(--color-dim); transition: fill 0.25s ease; }
+.atlas-num { fill: var(--color-red-text); }
+.atlas-node.is-hover .atlas-label, .atlas-node.is-active .atlas-label { fill: var(--color-text); }
+
+/* index (a tab list): a row of numbers on phones, a ruled list on desktop */
+.sc-tab {
+  display: grid; grid-template-columns: auto 1fr; align-items: baseline; column-gap: 0.9rem;
+  min-height: 44px; padding: 0.7rem 0.9rem; text-align: left; width: 100%;
+  border: 1px solid rgb(255 255 255 / 0.12); color: var(--color-silver);
+  transition: border-color 0.25s ease, background-color 0.25s ease, color 0.25s ease;
+}
+.sc-tab__num { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em; color: var(--color-dim); }
+.sc-tab__title { font-family: var(--font-serif); font-size: 21px; line-height: 1.1; color: inherit; white-space: nowrap; }
+.sc-tab__status { grid-column: 2; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-dim); margin-top: 0.3rem; }
+.sc-tab.is-concept { border-style: dashed; }
+.sc-tab[data-hover] { color: var(--color-text); border-color: rgb(255 255 255 / 0.3); }
+.sc-tab[data-active] { color: var(--color-text); border-color: rgb(227 38 43 / 0.7); background: rgb(227 38 43 / 0.07); }
+.sc-tab[data-active] .sc-tab__num { color: var(--color-red-text); }
+@media (max-width: 1023px) {
+  .sc-tab { grid-template-columns: auto; padding: 0.55rem 0.85rem; }
+  .sc-tab__title { font-size: 17px; }
+  .sc-tab__status { display: none; }
+}
 @media (min-width: 1024px) {
-  .skyline-stage {
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 70%, transparent 100%), linear-gradient(to right, transparent 26%, #000 56%);
-    -webkit-mask-composite: source-in;
-    mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 70%, transparent 100%), linear-gradient(to right, transparent 26%, #000 56%);
-    mask-composite: intersect;
-  }
+  .sc-index > li + li .sc-tab { margin-top: -1px; }
+  .sc-tab { border-left-width: 0; border-right-width: 0; padding-left: 0.2rem; }
+  .sc-tab[data-active] { background: linear-gradient(90deg, rgb(227 38 43 / 0.09), transparent 70%); }
 }
-html[data-verse] .skyline-stage { transition: opacity 0.5s steps(4); }
-html[data-verse] .skyline-stage[data-ready] { opacity: 1; }
-.skyline-stage canvas { display: block; }
+
+/* stage */
+.sc-stage { perspective: 1400px; touch-action: pan-y; }
+.sc-stage__link { transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1); transform-style: preserve-3d; }
+.sc-frame {
+  position: relative; aspect-ratio: 16 / 10; overflow: hidden; background: #070708;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  box-shadow: -40px 30px 120px -50px rgb(122 21 18 / 0.55);
+  animation: sc-wipe 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.sc-frame.is-concept { border-style: dashed; border-color: rgb(255 255 255 / 0.3); }
+@keyframes sc-wipe {
+  from { clip-path: inset(0 calc(100% * (1 + var(--dir, 1)) / 2) 0 calc(100% * (1 - var(--dir, 1)) / 2)); }
+  to { clip-path: inset(0 0 0 0); }
+}
+.sc-frame::after { /* the scan edge that leads the wipe */
+  content: ""; position: absolute; top: 0; bottom: 0; width: 1px; background: var(--color-red); opacity: 0;
+  left: calc(50% + 50% * var(--dir, 1)); animation: sc-scan 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@keyframes sc-scan { from { opacity: 0.9; left: calc(50% - 50% * var(--dir, 1)); } to { opacity: 0; } }
+.sc-tick { position: absolute; width: 14px; height: 14px; border-color: rgb(236 231 226 / 0.55); pointer-events: none; z-index: 3; }
+.sc-tick--tl { top: 8px; left: 8px; border-top: 1px solid; border-left: 1px solid; }
+.sc-tick--tr { top: 8px; right: 8px; border-top: 1px solid; border-right: 1px solid; }
+.sc-tick--bl { bottom: 8px; left: 8px; border-bottom: 1px solid; border-left: 1px solid; }
+.sc-tick--br { bottom: 8px; right: 8px; border-bottom: 1px solid; border-right: 1px solid; }
+.sc-note {
+  position: absolute; z-index: 3; margin: 0; max-width: 60%;
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; line-height: 1.5;
+  padding: 0.35em 0.6em; background: rgb(0 0 0 / 0.72); color: var(--color-text); border: 1px solid rgb(255 255 255 / 0.18);
+}
+.sc-note--light { background: rgb(255 255 255 / 0.85); color: #111; border-color: rgb(0 0 0 / 0.15); }
+.sc-note--tl { top: 28px; left: 28px; } .sc-note--tr { top: 28px; right: 28px; }
+.sc-note--bl { bottom: 28px; left: 28px; } .sc-note--br { bottom: 28px; right: 28px; }
+
+/* signal paths */
+.sc-path { font-family: var(--font-mono); text-transform: uppercase; }
+.sc-path__label { display: block; font-size: 10px; letter-spacing: 0.16em; color: var(--color-dim); margin-bottom: 0.5rem; }
+.sc-path__steps { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0; margin: 0; padding: 0; list-style: none; }
+.sc-path__steps li { display: flex; align-items: center; }
+.sc-path__wire { width: 22px; height: 1px; background: rgb(227 38 43 / 0.75); margin: 0 0.4rem; }
+.sc-path__step { font-size: 10.5px; letter-spacing: 0.1em; color: var(--color-text); border: 1px solid rgb(255 255 255 / 0.22); background: rgb(0 0 0 / 0.6); padding: 0.4em 0.6em; white-space: nowrap; }
+
+/* 01 RAYA */
+.sc-raya__shot img { filter: brightness(0.86) contrast(1.05); }
+.sc-raya__shade { position: absolute; inset: 0; background: linear-gradient(0deg, rgb(0 0 0 / 0.88) 0%, rgb(0 0 0 / 0.2) 34%, transparent 55%); }
+.sc-raya__path { position: absolute; left: 28px; right: 28px; bottom: 26px; z-index: 3; }
+/* 02 INFINOS */
+.sc-orbit { pointer-events: none; }
+.sc-orbit__ring { fill: none; stroke: rgb(236 231 226 / 0.35); stroke-width: 1.4; stroke-dasharray: 2 7; }
+.sc-orbit__tick { stroke: rgb(236 231 226 / 0.35); stroke-width: 1.4; }
+.sc-orbit__tick--major { stroke: var(--color-red); stroke-width: 2.4; }
+.sc-orbit__deg { font-family: var(--font-mono); font-size: 26px; letter-spacing: 0.12em; fill: var(--color-text); }
+/* 03 INFINOS Telemetry */
+.sc-tele__ground { position: absolute; inset: 0; background: radial-gradient(70% 70% at 30% 40%, #1a1512, #070708 70%); }
+.sc-tele__browser {
+  position: absolute; left: 7%; top: 9%; width: 62%; aspect-ratio: 16 / 10.6; z-index: 1;
+  border: 1px solid rgb(255 255 255 / 0.2); background: #f3efe6;
+  transform: perspective(1600px) rotateY(-9deg) rotateX(3deg); transform-origin: 30% 50%;
+  box-shadow: 30px 40px 80px -30px rgb(0 0 0 / 0.9);
+}
+.sc-tele__bar { height: 22px; display: flex; align-items: center; gap: 6px; padding: 0 10px; background: #e8e2d6; border-bottom: 1px solid rgb(0 0 0 / 0.08); }
+.sc-tele__bar i { width: 7px; height: 7px; border-radius: 50%; background: rgb(0 0 0 / 0.2); }
+.sc-tele__bar span { margin-left: 10px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgb(0 0 0 / 0.55); }
+.sc-tele__screen { position: absolute; inset: 22px 0 0 0; overflow: hidden; }
+.sc-tele__path { position: absolute; left: 28px; right: 28px; bottom: 26px; z-index: 3; }
+/* 04 Brain Matrix */
+.sc-brain__shot img { filter: brightness(0.62) saturate(0.9); }
+.sc-brain__lens {
+  position: absolute; right: 5%; bottom: 9%; width: 52%; aspect-ratio: 16 / 7.5; overflow: hidden; z-index: 2;
+  border: 1px solid rgb(227 38 43 / 0.6); background: #fff; box-shadow: 0 30px 80px -20px rgb(0 0 0 / 0.9);
+}
+.sc-brain__lens-img { position: absolute; max-width: none; width: 182%; height: auto; left: -71%; top: -96%; }
+.sc-brain__lens-label { position: absolute; left: 0; bottom: 0; right: 0; padding: 0.4em 0.7em; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #fff; background: rgb(0 0 0 / 0.75); }
+/* 05 SIMPLEIN School */
+.sc-school__shot { position: absolute; inset: 0 40% 0 0; overflow: hidden; border-right: 1px solid rgb(255 255 255 / 0.15); }
+.sc-school__arch { position: absolute; inset: 0 0 0 60%; padding: 7% 5% 5%; background: #0a0a0b; }
+.sc-arch__box { fill: none; stroke: rgb(236 231 226 / 0.45); stroke-width: 1; }
+.sc-arch__box--api { stroke: var(--color-red); }
+.sc-arch__cell { fill: rgb(236 231 226 / 0.04); stroke: rgb(236 231 226 / 0.3); stroke-dasharray: 3 3; }
+.sc-arch__wire { fill: none; stroke: rgb(236 231 226 / 0.35); stroke-width: 1; }
+.sc-arch__t { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.04em; fill: var(--color-silver); text-transform: uppercase; }
+.sc-arch__t--b { fill: var(--color-text); font-size: 10px; }
+/* 06 ESP32 (concept) */
+.sc-esp { background: #070708; }
+.sc-esp__grid { fill: none; stroke: rgb(236 231 226 / 0.05); stroke-width: 1; }
+.sc-esp__part { fill: none; stroke: rgb(236 231 226 / 0.55); stroke-width: 2; stroke-dasharray: 10 8; }
+.sc-esp__pin { stroke: rgb(236 231 226 / 0.45); stroke-width: 2; }
+.sc-esp__wire { fill: none; stroke: var(--color-red); stroke-width: 2; stroke-dasharray: 10 8; }
+.sc-esp__name { font-family: var(--font-serif); font-size: 64px; fill: var(--color-text); }
+.sc-esp__name--s { font-size: 40px; }
+.sc-esp__sub { font-family: var(--font-mono); font-size: 22px; letter-spacing: 0.12em; text-transform: uppercase; fill: var(--color-dim); }
+.sc-esp__stamp { font-family: var(--font-mono); font-size: 92px; letter-spacing: 0.4em; fill: none; stroke: var(--color-red-text); stroke-width: 2; }
+
+/* details */
+.sc-detail > * { animation: sc-rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.sc-detail > * + * { animation-delay: 0.07s; }
+@keyframes sc-rise { from { opacity: 0; transform: translateY(12px); } }
+.sc-spec { display: grid; gap: 0; border-top: 1px solid rgb(255 255 255 / 0.1); }
+.sc-spec > div { display: grid; grid-template-columns: 6.5rem 1fr; gap: 1rem; padding: 0.85rem 0; border-bottom: 1px solid rgb(255 255 255 / 0.1); }
+.sc-spec dt { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-dim); padding-top: 0.2rem; }
+.sc-spec dd { margin: 0; font-size: 15px; line-height: 1.55; color: var(--color-silver); }
+.sc-cta {
+  display: inline-flex; align-items: center; gap: 0.8rem; min-height: 48px; padding: 0.8rem 1.3rem;
+  font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--color-text); border: 1px solid var(--color-red); background: rgb(227 38 43 / 0.08);
+  transition: background-color 0.25s ease, gap 0.25s ease;
+}
+.sc-cta:hover { background: rgb(227 38 43 / 0.22); gap: 1.1rem; }
+.sc-arrow { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 0.2); color: var(--color-text); transition: border-color 0.2s ease; }
+.sc-arrow:hover { border-color: var(--color-red); }
+
+/* the Verse: panels, ink and twos */
+html[data-verse] .sc-frame { border: 3px solid var(--verse-paper); box-shadow: 12px 12px 0 var(--color-red), 12px 12px 0 3px var(--verse-ink); animation-timing-function: steps(6, end); }
+html[data-verse] .sc-frame.is-concept { border-style: dashed; }
+html[data-verse] .sc-frame::after { display: none; }
+html[data-verse] .sc-note { background: var(--verse-yellow); color: var(--verse-ink); border: 2px solid var(--verse-ink); font-family: var(--ff-comic), Impact, sans-serif; font-size: 14px; letter-spacing: 0.05em; }
+html[data-verse] .sc-path__step { border: 2px solid var(--verse-paper); background: var(--verse-ink); }
+html[data-verse] .sc-tab__title { font-family: var(--ff-comic), Impact, sans-serif; letter-spacing: 0.03em; }
+html[data-verse] .sc-tab[data-active] { border: 2px solid var(--verse-paper); background: var(--color-red); box-shadow: 4px 4px 0 var(--verse-ink); }
+html[data-verse] .sc-tab[data-active] .sc-tab__num, html[data-verse] .sc-tab[data-active] .sc-tab__status { color: var(--verse-ink); }
+html[data-verse] .atlas-radial, html[data-verse] .atlas-ring, html[data-verse] .atlas-frame { stroke: rgb(255 255 255 / 0.32); stroke-width: 1.1; }
+html[data-verse] .atlas-active { stroke: var(--verse-yellow); stroke-width: 3; }
+html[data-verse] .atlas-node.is-active .atlas-dot { fill: var(--verse-yellow); stroke: var(--verse-ink); stroke-width: 2; }
+html[data-verse] .sc-cta { border: 2px solid var(--verse-paper); background: var(--color-red); box-shadow: 4px 4px 0 var(--verse-ink); font-family: var(--ff-comic), Impact, sans-serif; font-size: 18px; letter-spacing: 0.06em; }
+html[data-verse] .sc-detail > * { animation-timing-function: steps(5, end); }
+
 @media (prefers-reduced-motion: reduce) {
-  .skyline-stage { transition: none; }
+  .sc-frame, .sc-frame::after, .sc-detail > *, .atlas-active { animation: none; }
+  .atlas-active { stroke-dashoffset: 0; }
+  .sc-stage__link { transform: none; transition: none; }
+}
+@media (max-width: 767px) {
+  .sc-note { font-size: 9px; padding: 0.3em 0.5em; max-width: 78%; }
+  .sc-note--tl, .sc-note--tr { top: 14px; } .sc-note--tl, .sc-note--bl { left: 14px; } .sc-note--tr, .sc-note--br { right: 14px; }
+  .sc-note--bl, .sc-note--br { bottom: 14px; }
+  .sc-raya__path, .sc-tele__path { display: none; }
+  /* RAYA carries two notes: on a phone the second drops to the free bottom corner */
+  .sc-frame--raya .sc-note--tr { top: auto; right: auto; bottom: 14px; left: 14px; }
+  .sc-tick { width: 10px; height: 10px; }
 }

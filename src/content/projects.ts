@@ -302,34 +302,6 @@ export const projects: Project[] = [
   },
 ];
 
-/** Short entries, not full case studies. */
-export const alsoBuilt: { title: string; line: string; status: string; evidence: Evidence[]; link?: Link; image?: string; alt?: string }[] = [
-  {
-    title: "AI 3D Studio",
-    line: "A local-first studio that turns one photo, or a photo set of a real object, into an inspectable, exportable 3D model: photogrammetry and AI generation in one workspace. Cloud AI adapters haven’t been run against the paid services yet; local generation uses TripoSR.",
-    status: "Ongoing · release candidate",
-    evidence: ["implemented"],
-    link: { kind: "repo", url: `${GH}/3d-ai-studio`, label: "Source" },
-    image: "/work/ai-3d-studio.jpg",
-    alt: "AI 3D Studio’s new-project screen",
-  },
-  {
-    title: "Nocturne",
-    line: "A scroll-driven manga story for a fictional spirits brand, with code-drawn illustrations, custom shaders and synthesised sound.",
-    status: "Live study",
-    evidence: ["implemented"],
-    link: { kind: "live", url: "https://anime-website-nu-nine.vercel.app", label: "Visit" },
-    image: "/work/nocturne.jpg",
-    alt: "A Nocturne manga plate: a silhouetted figure before a red sun",
-  },
-  {
-    title: "JARVIS desktop prototype (FastAPI + Flutter)",
-    line: "An earlier local-first desktop assistant (July 2026): a FastAPI backend and a Flutter macOS client, with a LangGraph agent routing one tool call per turn across 36 tools and SQLite + ChromaDB memory. Text chat with tool calls ran locally; voice was implemented and partially demonstrated. Separate from RAYA. Built with an AI coding agent; how much of it is AI-written is still being confirmed.",
-    status: "Prototype",
-    evidence: ["implemented"],
-  },
-];
-
 export const projectBySlug = (slug: string) => projects.find((p) => p.slug === slug);
 export const nextProject = (slug: string) => {
   const i = projects.findIndex((p) => p.slug === slug);

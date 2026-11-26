@@ -15,7 +15,7 @@ Built with Next.js 16, React 19 and Tailwind CSS 4.
 
 ## What's here
 
-- **Home:** the hero reveal, the work as a skyline of six projects, other builds, a short About and Contact.
+- **Home:** the hero reveal with its 3D web, the work as a connected atlas of six projects (one stage, one frame per project, each opening its case study), a short About and Contact.
 - **`/work/<project>`:** one page per project: what it is, what he did, the hard part, how it works, stack, links and credits.
 - **`/about`:** experience, education, skills and recognition.
 

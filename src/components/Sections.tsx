@@ -1,8 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
-import { alsoBuilt } from "@/content/projects";
 import { site } from "@/content/site";
-import { Chip, Legend } from "./Evidence";
+import { Legend } from "./Evidence";
 import { Clock } from "./Clock";
 import { NightShift } from "./NightShift";
 
@@ -12,54 +10,6 @@ export function External() {
     <>
       <span className="sr-only"> (opens in a new tab)</span> <span aria-hidden="true">↗</span>
     </>
-  );
-}
-
-/** Short entries: real work that isn't a full case study. */
-export function AlsoBuilt() {
-  return (
-    <section aria-labelledby="also-title" className="border-t hairline bg-void px-5 py-24 md:px-10 md:py-32">
-      <p className="label verse-caption text-dim">Side work</p>
-      <h2 id="also-title" className="display mt-4 text-[clamp(40px,5vw,72px)] text-text">
-        Also built<span className="text-red-text">.</span>
-      </h2>
-      <ul className="mt-12 grid gap-12 md:grid-cols-3 md:gap-8">
-        {alsoBuilt.map((a) => (
-          <li key={a.title} className="flex flex-col">
-            {a.image ? (
-              <div className="lit-window aspect-[16/10] overflow-hidden">
-                <Image src={a.image} alt={a.alt ?? `Screenshot of ${a.title}`} fill sizes="(min-width:768px) 30vw, 90vw" className="object-cover object-left-top" />
-              </div>
-            ) : (
-              <div className="relative grid aspect-[16/10] place-items-center overflow-hidden border border-dashed border-white/20">
-                <span aria-hidden="true" className="display select-none text-[clamp(72px,9vw,132px)] text-transparent [-webkit-text-stroke:1px_rgba(255,255,255,0.2)]">
-                  JARVIS
-                </span>
-                <span className="label absolute bottom-4 left-4 text-dim">No screenshots exist</span>
-              </div>
-            )}
-            <div className="mt-5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-              <h3 className="display text-[30px] leading-[1.05] text-text">{a.title}</h3>
-              <span className="label text-dim">{a.status}</span>
-            </div>
-            <p className="mt-3 text-[16px] leading-[1.6] text-silver">{a.line}</p>
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              {a.evidence.map((k) => (
-                <Chip key={k} kind={k} />
-              ))}
-              {a.image && <Chip kind="screenshot" />}
-              {a.link && (
-                <a href={a.link.url} target="_blank" rel="noreferrer" className="label link-underline ml-1 text-text">
-                  {a.link.label}
-                  <span className="sr-only"> of {a.title}</span>
-                  <External />
-                </a>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
 
