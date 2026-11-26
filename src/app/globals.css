@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Wide AND tall enough for the hero's bottom strip to sit clear of the name */
+@custom-variant roomy {
+  @media (min-width: 1280px) and (min-height: 860px) {
+    @slot;
+  }
+}
+
 /* SWING SHIFT: black studio, one red, silver type. References: the Spider Noir site (black, a single
    red, a thin red reticle round the portrait, tiny uppercase labels), the "Developer flex" reel
    (a wordmark that scrambles in front of the portrait, static that settles into the image, red

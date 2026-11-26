@@ -352,8 +352,8 @@ export function Hero() {
         </div>
       </div>
 
-      {/* Left: the statement */}
-      <div className="rise absolute bottom-8 left-10 z-[5] hidden max-w-[22rem] md:block" style={{ animationDelay: "1.6s" }}>
+      {/* Left: the statement. Roomy screens only (1280 × 860 and up): below that the name fills the bottom edge */}
+      <div className="rise absolute bottom-8 left-10 z-[5] hidden max-w-[22rem] roomy:block" style={{ animationDelay: "1.6s" }}>
         <p data-anchor className="verse-caption text-[17px] leading-[1.4] text-text">{site.line[1]}</p>
         <p className="label mt-5 text-dim">
           {site.location} · {site.company}
@@ -376,9 +376,9 @@ export function Hero() {
         </span>
       </div>
 
-      {/* How to use it: under the header on phones, bottom-right on desktop */}
-      <div className="rise absolute left-5 top-[72px] z-[5] md:bottom-8 md:left-auto md:right-10 md:top-auto md:text-right" style={{ animationDelay: "2s" }}>
-        <p className="label flex items-center gap-2 text-silver md:justify-end">
+      {/* How to use it: under the header on phones and tablets, bottom-right on roomy screens */}
+      <div className="rise absolute left-5 top-[72px] z-[5] md:left-10 md:top-[96px] roomy:bottom-8 roomy:left-auto roomy:right-10 roomy:top-auto roomy:text-right" style={{ animationDelay: "2s" }}>
+        <p className="label flex items-center gap-2 text-silver roomy:justify-end">
           <span aria-hidden="true" className="pulse size-1.5 rounded-full bg-red" />
           {touch ? "Tap the mask" : "Move over the mask"}
         </p>
