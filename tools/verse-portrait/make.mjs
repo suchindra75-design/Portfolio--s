@@ -1,11 +1,13 @@
 // Re-inks the owner's two portrait files for the Verse dimension: flat posterised colour,
 // halftone dots in the mid-tones, ink lines on edges and a slight plate misregistration.
-// It is a per-pixel filter (nothing generated), and it runs on both files identically, so the
-// two layers stay registered and reveal-region.png still fits.
+// It is a per-pixel filter (nothing generated), and it runs on both files identically. Each file
+// is drawn into the 771 x 1018 portrait box the way the site shows it: "fill" for the mask file
+// (already that size), "cover" for the professional portrait (fitted without stretching, as
+// object-cover does), so the Verse layers line up exactly like the Prime ones.
 //
 //   node tools/verse-portrait/make.mjs
 //
-// Writes public/portrait/verse/{base,face}.jpg. Needs Google Chrome and ffmpeg on the PATH.
+// Writes public/portrait/verse/base.jpg and face-suit.jpg. Needs Google Chrome and ffmpeg.
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -14,20 +16,24 @@ import { join, resolve } from "node:path";
 const root = resolve(import.meta.dirname, "../..");
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const jobs = [
-  ["public/portrait/spiderman_masked_portrait.png", "public/portrait/verse/base.jpg"],
-  ["public/portrait/human_face_spiderman_portrait.png", "public/portrait/verse/face.jpg"],
+  ["public/portrait/spiderman_masked_portrait.png", "public/portrait/verse/base.jpg", "fill"],
+  ["public/portrait/suit-portrait.webp", "public/portrait/verse/face-suit.jpg", "cover"],
 ];
 const W = 771, H = 1018;
 const tmp = mkdtempSync(join(tmpdir(), "verse-"));
 mkdirSync(join(root, "public/portrait/verse"), { recursive: true });
 
-const page = (src) => `<!doctype html><html><body style="margin:0;background:#000">
+const page = (src, fit) => `<!doctype html><html><body style="margin:0;background:#000">
 <canvas id="c" width="${W}" height="${H}" style="display:block"></canvas>
 <script>
 const img = new Image();
 img.onload = () => {
   const W=${W},H=${H},c=document.getElementById('c'),g=c.getContext('2d');
-  g.drawImage(img,0,0,W,H);
+  if (${JSON.stringify(fit)} === "cover") {
+    const s = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+    const w = img.naturalWidth * s, h = img.naturalHeight * s;
+    g.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+  } else g.drawImage(img,0,0,W,H);
   const src=g.getImageData(0,0,W,H).data;
   const L=new Float32Array(W*H);
   for(let i=0;i<W*H;i++){L[i]=Math.max(src[i*4],src[i*4+1],src[i*4+2])/255;}
@@ -77,10 +83,11 @@ img.onload = () => {
 img.src=${JSON.stringify(src)};
 </script></body></html>`;
 
-for (const [from, to] of jobs) {
+for (const [from, to, fit] of jobs) {
   const b64 = readFileSync(join(root, from)).toString("base64");
+  const mime = from.endsWith(".webp") ? "image/webp" : "image/png";
   const html = join(tmp, "p.html");
-  writeFileSync(html, page(`data:image/png;base64,${b64}`));
+  writeFileSync(html, page(`data:${mime};base64,${b64}`, fit));
   const png = join(tmp, "out.png");
   execFileSync(CHROME, ["--headless=new", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1", "--virtual-time-budget=20000", `--window-size=${W},${H}`, `--screenshot=${png}`, `file://${html}`], { stdio: "ignore" });
   execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-i", png, "-q:v", "2", join(root, to)]);

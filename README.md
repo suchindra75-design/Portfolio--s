@@ -25,7 +25,7 @@ Every claim carries a label: implemented, reported, upstream, simulation, concep
 
 The hero uses two image files supplied by Suchindra, exactly as supplied (`public/portrait/`). The face layer sits on top and is masked to a soft circle that follows the cursor. On touch screens, tap or press and hold. A keyboard toggle is also available, and reduced-motion settings are respected.
 
-`public/portrait/reveal-region.png` limits the reveal to the head and neck, because the suits in the two files differ by a few pixels. `tools/reveal-region/region.py` regenerates it from the two files without changing them.
+The face layer is his professional portrait, `public/portrait/suit-portrait.webp`, served exactly as supplied and fitted to the box without stretching. `public/portrait/reveal-region-suit.png` limits the reveal to his head, with the neck fading out above the shirt collar, so the Spider-Man suit always shows below. `tools/reveal-region/suit-region.sh` regenerates it. The earlier face file and its `reveal-region.png` (from `region.py`) are kept but no longer used.
 
 ## Credits and rights
 

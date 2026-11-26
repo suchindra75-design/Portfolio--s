@@ -252,7 +252,7 @@ export function Hero() {
     const onFound = () => setFound(true);
     el.addEventListener("reveal-found", onFound);
     // warm the Verse portrait once the page is idle, so the first jump has it ready
-    const warm = window.setTimeout(() => ["/portrait/verse/base.jpg", "/portrait/verse/face.jpg"].forEach((src) => (new Image().src = src)), 4500);
+    const warm = window.setTimeout(() => ["/portrait/verse/base.jpg", "/portrait/verse/face-suit.jpg"].forEach((src) => (new Image().src = src)), 4500);
     return () => {
       el.removeEventListener("reveal-found", onFound);
       window.clearTimeout(warm);
