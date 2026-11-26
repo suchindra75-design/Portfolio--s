@@ -310,7 +310,7 @@ export function Hero() {
       <div className="pointer-events-none absolute inset-x-0 bottom-[13svh] z-[4] flex justify-center md:bottom-[3svh]">
         <div className="relative">
           {/* The Verse: a spray-painted tag under the name (Miles's touch) */}
-          <svg aria-hidden="true" viewBox="0 0 1000 260" preserveAspectRatio="none" className="spray-tag verse-only absolute -left-[3%] bottom-[10%] h-[52%] w-[106%]">
+          <svg aria-hidden="true" viewBox="0 0 1000 260" preserveAspectRatio="none" className="spray-tag verse-only rise absolute -left-[3%] bottom-[10%] h-[52%] w-[106%]" style={{ animationDelay: "2.3s" }}>
             <defs>
               <filter id="spray" x="-10%" y="-30%" width="120%" height="160%">
                 <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" result="n" />

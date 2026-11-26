@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 
 /**
  * TWO EARTHS. The site exists in two dimensions with the same content:
- *   Earth-Prime: the approved night edition (default).
- *   The Verse:   the same pages re-inked as a comic book (halftone, misregistered plates,
- *                caption boxes, SFX, motion on twos). See docs/interactive/PLAN.md.
+ *   The Verse:   the pages inked as a comic book (halftone, misregistered plates, caption
+ *                boxes, SFX, motion on twos). The default, by the owner's choice (2026-11-26).
+ *   Earth-Prime: the approved cinematic night edition. See docs/interactive/PLAN.md.
  *
- * The dimension lives on <html data-verse>. A tiny inline script in the layout applies the stored
- * choice before paint, so a reload never flashes the other dimension.
+ * The dimension lives on <html data-verse>. A tiny inline script in the layout applies it before
+ * paint (the Verse unless this visit chose Prime), so a load never flashes the other dimension.
+ * Without JavaScript the page stays in Earth-Prime, which needs none.
  */
 export const KEY = "swing-shift:verse";
 const HINTED = "swing-shift:hinted";
@@ -17,8 +18,8 @@ export const DIMENSION_EVENT = "swing-shift:dimension";
 
 export const isVerse = () => typeof document !== "undefined" && document.documentElement.dataset.verse === "1";
 
-/** Inline, pre-paint: restores the dimension for this visit. */
-export const dimensionBootScript = `try{if(sessionStorage.getItem(${JSON.stringify(KEY)})==="1")document.documentElement.dataset.verse="1"}catch(e){}`;
+/** Inline, pre-paint: the Verse by default, Earth-Prime only if this visit switched to it. */
+export const dimensionBootScript = `(function(){var v=null;try{v=sessionStorage.getItem(${JSON.stringify(KEY)})}catch(e){}if(v!=="0")document.documentElement.dataset.verse="1"})()`;
 
 function set(on: boolean) {
   const html = document.documentElement;
@@ -79,7 +80,7 @@ export function DimensionSwitch() {
 
 /**
  * Mounted once. Owns the V shortcut, the glitch overlay and the one-time hint: after the hero's
- * intro, a first-time visitor sees the other dimension for two frames and a caption box.
+ * intro, a first-time visitor sees a two-frame glitch and a caption box pointing to Earth-Prime.
  */
 export function DimensionRoot() {
   const [hint, setHint] = useState(false);
@@ -136,7 +137,7 @@ export function DimensionRoot() {
       <p role="status" className={`dimension-hint caption-box fixed right-5 top-[64px] z-[60] max-w-[17rem] md:right-10 md:top-[78px] ${hint ? "is-on" : ""}`}>
         {hint && (
           <>
-            Psst. This site has another dimension. <button type="button" onClick={() => jump(true)} className="underline decoration-2 underline-offset-2">Jump</button> or press <kbd>V</kbd>.
+            Psst. There’s a cinematic night edition too. <button type="button" onClick={() => jump(false)} className="underline decoration-2 underline-offset-2">Jump</button> or press <kbd>V</kbd>.
           </>
         )}
       </p>
