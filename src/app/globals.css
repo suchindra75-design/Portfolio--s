@@ -69,9 +69,9 @@ body {
 }
 
 /* ── The two-image reveal ───────────────────────────────────────────────────────────────────
-   Both of the owner's images fill one box with no transform of their own. The face layer is cut
-   by two masks at once: a soft circle under the cursor, and reveal-region-suit.png (the head, with
-   the neck fading out above his collar), so below the neck the Spider-Man suit always shows. */
+   Both of the owner's images fill one box. The portrait layer is cut by one mask: a soft circle
+   under the cursor, so wherever it goes it uncovers his professional portrait (face, hair, suit,
+   shirt and tie) under the Spider-Man figure. */
 .reveal {
   touch-action: pan-y;
   -webkit-user-select: none;
@@ -88,18 +88,8 @@ body {
   --x: 50%;
   --y: 36%;
   --r: 0px;
-  -webkit-mask-image:
-    radial-gradient(circle var(--r) at var(--x) var(--y), #000 0, #000 76%, rgba(0, 0, 0, 0.55) 90%, transparent 100%),
-    url("/portrait/reveal-region-suit.png");
-  -webkit-mask-size: 100% 100%, 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-composite: source-in;
-  mask-image:
-    radial-gradient(circle var(--r) at var(--x) var(--y), #000 0, #000 76%, rgba(0, 0, 0, 0.55) 90%, transparent 100%),
-    url("/portrait/reveal-region-suit.png");
-  mask-size: 100% 100%, 100% 100%;
-  mask-repeat: no-repeat;
-  mask-composite: intersect;
+  -webkit-mask-image: radial-gradient(circle var(--r) at var(--x) var(--y), #000 0, #000 76%, rgba(0, 0, 0, 0.55) 90%, transparent 100%);
+  mask-image: radial-gradient(circle var(--r) at var(--x) var(--y), #000 0, #000 76%, rgba(0, 0, 0, 0.55) 90%, transparent 100%);
   will-change: mask-image;
 }
 

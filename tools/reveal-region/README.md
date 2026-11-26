@@ -4,8 +4,8 @@
 
 It reads the two supplied portraits in `public/portrait/` and never changes them. Those two files' suits are offset by about 2–3 px and drawn slightly differently, so revealing outside the head would show a mismatched suit.
 
-`suit-region.sh` makes `public/portrait/reveal-region-suit.png`, the region now in use: the same head shape with the neck faded out above the collar of the professional portrait (`suit-portrait.webp`). It only needs ffmpeg.
+No longer in use: the reveal now uncovers the whole professional portrait (`suit-portrait.webp`), so no region mask is applied. Kept for the earlier face file.
 
-Run them only if the portraits change:
+Run it only if those portraits change:
 
     python3 tools/reveal-region/region.py   # needs numpy, opencv-python, pillow, scipy

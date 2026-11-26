@@ -9,19 +9,17 @@ import { site } from "@/content/site";
  *   base  = spiderman_masked_portrait.png (771 x 1018, always visible)
  *   face  = suit-portrait.webp (1091 x 1442, his professional portrait; shown only inside a soft
  *           circle under the cursor)
- * Both are served unoptimised, so these are the exact pixels of his files. The face file is 0.1%
+ * Both are served unoptimised, so these are the exact pixels of his files. The portrait is 0.1%
  * taller in proportion than the box, so it is fitted with object-cover (about 1.5 px trimmed top and
  * bottom, never stretched); at that fit his eyes, chin and hairline land within a few pixels of the
- * mask's. The face layer is also clipped to reveal-region-suit.png: the head shape, with the neck
- * fading out just above his shirt collar (tools/reveal-region/suit-region.sh), so the reveal shows
- * his face and hair and the Spider-Man suit always shows below the neck.
+ * mask's. The circle uncovers the whole portrait wherever it goes (face, hair, suit and tie), and
+ * the portrait is the exact photo in both dimensions: the Verse re-inks only the Spider-Man layer.
  *
  * No React state: pointer input sets CSS variables, and a rAF loop runs only while the circle moves.
  */
 const BASE = "/portrait/spiderman_masked_portrait.png";
 const FACE = "/portrait/suit-portrait.webp";
 const VERSE_BASE = "/portrait/verse/base.jpg";
-const VERSE_FACE = "/portrait/verse/face-suit.jpg";
 const FACE_AT = { x: 0.5, y: 0.38 }; // centre of his face, as fractions of the box
 const TAP_MOVE = 10; // px: more than this is a scroll or a drag, not a tap
 const HOLD_MS = 260; // press and hold to drag the reveal on a touch screen
@@ -207,8 +205,7 @@ export function Reveal({ className = "" }: { className?: string }) {
         {/* The Verse: the same two files, re-inked offline (tools/verse-portrait), same registration */}
         <Image src={VERSE_BASE} alt="" fill unoptimized draggable={false} className="verse-only object-fill" />
         <div ref={face} className="reveal__face" aria-hidden="true">
-          <Image src={FACE} alt="" fill unoptimized draggable={false} className="prime-only object-cover" />
-          <Image src={VERSE_FACE} alt="" fill unoptimized draggable={false} className="verse-only object-fill" />
+          <Image src={FACE} alt="" fill unoptimized draggable={false} className="object-cover" />
         </div>
       </div>
       <button

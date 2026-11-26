@@ -7,7 +7,8 @@
 //
 //   node tools/verse-portrait/make.mjs
 //
-// Writes public/portrait/verse/base.jpg and face-suit.jpg. Needs Google Chrome and ffmpeg.
+// Writes public/portrait/verse/base.jpg. The portrait layer is never re-inked: the Verse shows
+// his professional portrait exactly as supplied. Needs Google Chrome and ffmpeg.
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -17,7 +18,6 @@ const root = resolve(import.meta.dirname, "../..");
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const jobs = [
   ["public/portrait/spiderman_masked_portrait.png", "public/portrait/verse/base.jpg", "fill"],
-  ["public/portrait/suit-portrait.webp", "public/portrait/verse/face-suit.jpg", "cover"],
 ];
 const W = 771, H = 1018;
 const tmp = mkdtempSync(join(tmpdir(), "verse-"));
