@@ -620,6 +620,7 @@ html[data-verse] .portrait-frame {
 }
 .hero-web[data-ready="true"] {
   opacity: 1;
+}
 
 /* ══ TOOLKIT PASS (26 Nov 2026): smooth scroll, page transitions, the 3D skyline ═══════════════ */
 
