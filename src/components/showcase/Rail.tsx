@@ -34,6 +34,17 @@ const DROP = 30; // the wire
 const K = 150, C = 22, SK = 62, SC = 4.2, SG = 0.95;
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+type IdleWin = { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+/** Run when the browser is idle (or after `timeout` ms at the latest). Returns a cancel function. */
+function whenIdle(fn: () => void, timeout: number) {
+  const w = window as unknown as IdleWin;
+  if (w.requestIdleCallback) {
+    const id = w.requestIdleCallback(fn, { timeout });
+    return () => w.cancelIdleCallback?.(id);
+  }
+  const id = window.setTimeout(fn, Math.min(timeout, 200));
+  return () => window.clearTimeout(id);
+}
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const sm = (a: number, b: number, v: number) => {
   const t = clamp((v - a) / (b - a), 0, 1);
@@ -64,6 +75,15 @@ type Els = { frame: HTMLDivElement | null; swing: HTMLDivElement | null; media: 
 export function Rail() {
   const router = useRouter();
   const [shown, setShown] = useState(() => remembered);
+  // which frame's mini animates: handed over only once the rail has settled, so starting and
+  // stopping an animation (a restyle of hundreds of SVG elements) never lands mid-motion
+  const [settled, setSettled] = useState(() => remembered);
+  // the animated minis start on the first scroll (the gallery is still a screen away), never while
+  // the hero is loading: their styles would repaint the hero during its first paint
+  // which minis have started (a bit per frame): one per idle moment, nearest the front first; once
+  // started, a mini stays
+  const [mounted, setMounted] = useState(0);
+  const handover = useRef<() => void>(() => {});
   const stage = useRef<HTMLDivElement>(null);
   const rail = useRef<SVGPathElement>(null);
   const fallback = useRef<SVGPathElement>(null);
@@ -103,7 +123,9 @@ export function Rail() {
       const boost = s.hover === i && pl.d > 0.4 ? 0.22 : 0;
       const b = Math.min(1, base + (1 - base) * dev + boost), sat = Math.min(1, 0.55 + 0.45 * dev + boost);
       o.media.style.filter = b > 0.999 && sat > 0.999 ? "" : `brightness(${b.toFixed(3)}) saturate(${sat.toFixed(3)})`;
-      o.tint.style.opacity = Math.max(0, lerp(0.72, 0.38, g) * (1 - dev) - boost).toFixed(3);
+      const tint = Math.max(0, lerp(0.72, 0.38, g) * (1 - dev) - boost);
+      o.tint.style.opacity = tint.toFixed(3);
+      o.tint.style.visibility = tint < 0.002 ? "hidden" : ""; // no blend layer over the front frame
       o.frame.toggleAttribute("data-on", pl.d < 0.5);
       o.frame.toggleAttribute("data-peek", s.hover === i && pl.d > 0.5 && !s.mobile);
     });
@@ -170,6 +192,10 @@ export function Rail() {
         s.pos = s.target;
         s.vel = s.swing = s.swingV = 0;
         paint();
+        // hand the animation to the new front frame in idle time, unless the rail moves again first
+        handover.current();
+        const k = Math.round(s.target);
+        handover.current = whenIdle(() => { if (!st.current.raf) setSettled(k); }, 500);
       }
     },
     [paint],
@@ -195,6 +221,7 @@ export function Rail() {
         s.pos = s.target;
         s.vel = 0;
         paint();
+        setSettled(Math.round(s.target));
         return;
       }
       kick();
@@ -235,11 +262,14 @@ export function Rail() {
       el.style.height = `${Math.round(RAIL_Y + DROP + s.printW * 0.625 + (s.mobile ? 52 : 58))}px`;
     };
 
-    // the darkroom moment: the frames arrive as dark exposures and develop as the rail rises
+    // the darkroom moment: the frames arrive as dark exposures and develop as the rail rises.
+    // The stage's page position is measured on resize only, never per scroll frame.
+    let stageTop = 0;
+    const measure = () => { stageTop = el.getBoundingClientRect().top + window.scrollY; };
     const develop = () => {
       if (s.reduce) return 1;
-      const r = el.getBoundingClientRect(), vh = window.innerHeight;
-      return sm(0.66 * vh, 0.22 * vh, r.top + RAIL_Y);
+      const vh = window.innerHeight;
+      return sm(0.66 * vh, 0.22 * vh, stageTop - window.scrollY + RAIL_Y);
     };
     let sraf = 0;
     const onScroll = () => {
@@ -255,13 +285,29 @@ export function Rail() {
     };
 
     geometry();
+    measure();
     s.develop = develop();
     paint();
     el.dataset.live = "true";
-    const ro = new ResizeObserver(() => { geometry(); paint(); });
+    const ro = new ResizeObserver(() => { geometry(); measure(); s.develop = develop(); paint(); });
     ro.observe(el);
+    ro.observe(document.body); // content above the gallery changing height moves it
     const io = new IntersectionObserver(([e]) => { s.inView = e.isIntersecting; paint(); });
     io.observe(el);
+    let cancelMount = () => {};
+    let bits = 0;
+    const next = () => {
+      const here = Math.round(st.current.pos);
+      let pick = -1;
+      for (let i = 0; i < N; i++) if (!(bits & (1 << i)) && (pick < 0 || Math.abs(i - here) < Math.abs(pick - here))) pick = i;
+      if (pick < 0) return;
+      bits |= 1 << pick;
+      setMounted(bits);
+      cancelMount = whenIdle(next, 1200);
+    };
+    const mountLater = () => { cancelMount = whenIdle(next, 1200); };
+    if (window.scrollY > 0) mountLater();
+    else window.addEventListener("scroll", mountLater, { once: true, passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
 
     // drag / swipe
@@ -339,6 +385,9 @@ export function Rail() {
     return () => {
       ro.disconnect();
       io.disconnect();
+      window.removeEventListener("scroll", mountLater);
+      cancelMount();
+      handover.current();
       cancelAnimationFrame(s.raf);
       cancelAnimationFrame(sraf);
       s.raf = 0;
@@ -409,7 +458,7 @@ export function Rail() {
                 <span aria-hidden="true" className="dl-wire" />
                 <div className="dl-media">
                   <div ref={(m) => { els.current[i].media = m; }} className="dl-media__fx">
-                    <FrameMedia p={q} eager={i < 3} video={q.slug === "infinos" ? video : undefined} />
+                    <FrameMedia p={q} eager={i < 3} live={i === settled} mount={!!(mounted & (1 << i))} video={q.slug === "infinos" ? video : undefined} />
                   </div>
                   <span ref={(t) => { els.current[i].tint = t; }} aria-hidden="true" className="dl-tint" />
                 </div>

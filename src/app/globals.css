@@ -799,13 +799,6 @@ video.dl-media__el { object-position: center; }
   .dl-ticks, .dl-note, .dl-name { transition: none; }
 }
 
-/* 06 ESP32 (concept): the drawing that hangs in its frame */
-.sc-esp { background: #070708; }
-.sc-esp__grid { fill: none; stroke: rgb(236 231 226 / 0.05); stroke-width: 1; }
-.sc-esp__part { fill: none; stroke: rgb(236 231 226 / 0.55); stroke-width: 2; stroke-dasharray: 10 8; }
-.sc-esp__pin { stroke: rgb(236 231 226 / 0.45); stroke-width: 2; }
-.sc-esp__wire { fill: none; stroke: var(--color-red); stroke-width: 2; stroke-dasharray: 10 8; }
-.sc-esp__name { font-family: var(--font-serif); font-size: 64px; fill: var(--color-text); }
-.sc-esp__name--s { font-size: 40px; }
-.sc-esp__sub { font-family: var(--font-mono); font-size: 22px; letter-spacing: 0.12em; text-transform: uppercase; fill: var(--color-dim); }
-.sc-esp__stamp { font-family: var(--font-mono); font-size: 92px; letter-spacing: 0.4em; fill: none; stroke: var(--color-red-text); stroke-width: 2; }
+/* the animated minis (./showcase/minis): their own type hooks, mapped to this site's fonts */
+.dl { --font-display: var(--font-serif); }
+.dl .t-label { font-family: var(--font-mono); font-size: 0.6875rem; line-height: 1.5; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; }

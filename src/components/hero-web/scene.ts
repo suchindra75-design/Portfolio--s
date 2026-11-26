@@ -356,11 +356,30 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
   let scrollP = 0, leave = 0;
   const layer = canvas.parentElement!;
   const sm = (a: number, b: number, v: number) => { const x = Math.min(1, Math.max(0, (v - a) / (b - a))); return x * x * (3 - 2 * x); };
+  // Page positions are measured once (and again on any resize), then derived from the scroll
+  // position each frame: reading layout every frame forces the browser to lay the page out while
+  // the gallery's animations are changing it, which costs whole frames.
+  const doc = { heroTop: 0, heroH: 1, layerTop: 0, layerBottom: 1, nodeEl: null as HTMLElement | null, nodeLeft: 0, nodeTop: 0 };
+  const measure = () => {
+    const sx = window.scrollX, sy = window.scrollY;
+    const hr = host.getBoundingClientRect(), lr = layer.getBoundingClientRect();
+    doc.heroTop = hr.top + sy;
+    doc.heroH = Math.max(1, hr.height);
+    doc.layerTop = lr.top + sy;
+    doc.layerBottom = lr.bottom + sy;
+    const n = railNode.get();
+    doc.nodeEl = n && n.el.isConnected ? n.el : null;
+    if (doc.nodeEl) {
+      const er = doc.nodeEl.getBoundingClientRect();
+      doc.nodeLeft = er.left + sx;
+      doc.nodeTop = er.top + sy;
+    }
+  };
   const readScroll = () => {
-    const hr = host.getBoundingClientRect();
-    scrollP = Math.max(0, -hr.top / Math.max(1, hr.height));
+    const sy = window.scrollY;
+    scrollP = Math.max(0, (sy - doc.heroTop) / doc.heroH);
     const vh = window.innerHeight;
-    const gone = vh - layer.getBoundingClientRect().bottom; // how far the canvas has scrolled away
+    const gone = vh - (doc.layerBottom - sy); // how far the canvas has scrolled away
     leave = sm(0, 0.4 * vh, gone);
     const edge = `${(Math.min(1, Math.max(0, gone / (0.25 * vh))) * 25).toFixed(1)}%`;
     if (canvas.style.getPropertyValue("--edge") !== edge) canvas.style.setProperty("--edge", edge);
@@ -370,8 +389,11 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
   const placeThread = () => {
     const n = railNode.get();
     if (!data || !n || !n.el.isConnected || uniforms.uThread.value < 0.002) { thread.visible = false; return; }
-    const cr = canvas.getBoundingClientRect(), er = n.el.getBoundingClientRect();
-    const sx = (er.left + n.x - cr.left) / W, sy = (er.top + n.y - cr.top) / H;
+    if (n.el !== doc.nodeEl) measure();
+    const y0 = window.scrollY;
+    // the sticky canvas: pinned at the top until the end of its layer pushes it up
+    const canvasTop = Math.max(doc.layerTop - y0, Math.min(0, doc.layerBottom - y0 - H));
+    const sx = (doc.nodeLeft - window.scrollX + n.x) / W, sy = (doc.nodeTop - y0 + n.y - canvasTop) / H;
     tv.set(...data.threadFrom).applyMatrix4(web.matrixWorld);
     ray.set(sx * 2 - 1, 1 - sy * 2, 0.5).unproject(camera).sub(camera.position).normalize();
     const k = (tv.z - camera.position.z) / ray.z;
@@ -575,17 +597,19 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     visible = en.isIntersecting;
     if (visible) kick();
   });
-  const ro = new ResizeObserver(() => { resize(); kick(); });
+  const ro = new ResizeObserver(() => { resize(); measure(); readScroll(); kick(); });
   const onVis = () => { if (!document.hidden) kick(); };
   const onDim = () => kick();
   const onScroll = () => { readScroll(); kick(); };
   const offRail = railNode.on(kick);
 
   resize();
+  measure();
   readScroll();
   io.observe(canvas);
   ro.observe(canvas);
   ro.observe(host);
+  ro.observe(layer); // anything above the gallery changing height changes the layer's height
   window.addEventListener("scroll", onScroll, { passive: true });
   document.documentElement.dataset.webThread = "1"; // the gallery hides its fallback thread
   host.addEventListener("pointermove", onMove, { passive: true });
