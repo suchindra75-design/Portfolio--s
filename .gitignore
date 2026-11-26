@@ -1,0 +1,14 @@
+/node_modules
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+.env*
+.DS_Store
+# The hero portraits show a Marvel/Sony suit: a non-commercial fan edition (see README).
+
+# Working material stays on this Mac, out of the public repo: design history and private
+# planning notes, generated/reference art, the archived orange-site attempt, review screenshots.
+/art/
+/docs/
+tools/reveal-region/region-view.jpg
