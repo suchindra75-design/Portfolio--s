@@ -593,3 +593,31 @@ html[data-verse] .reticle circle { stroke: #fff; stroke-width: 2.5; }
   .caption-box { transition: none; }
   ::view-transition-group(.morph) { animation-duration: 0s; }
 }
+
+/* ══ THE WEB (hero, docs/interactive/HERO-WEB.md) ═══════════════════════════════════════════
+   The 3D web sits behind the portrait. The portrait files have opaque black backgrounds, so the
+   reveal box is masked to the figure's silhouette (tools/portrait-silhouette, computed from both
+   files without editing them): his figure occludes the web, the black rectangle does not. */
+.portrait-frame {
+  -webkit-mask-image: url("/portrait/silhouette.png");
+  mask-image: url("/portrait/silhouette.png");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+html[data-verse] .portrait-frame {
+  -webkit-mask-image: url("/portrait/silhouette.png"), linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: url("/portrait/silhouette.png"), linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask-size: 100% 100%, 100% 100%;
+  mask-size: 100% 100%, 100% 100%;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+.hero-web {
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.hero-web[data-ready="true"] {
+  opacity: 1;
+}

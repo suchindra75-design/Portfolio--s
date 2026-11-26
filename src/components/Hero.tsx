@@ -6,6 +6,7 @@ import { site } from "@/content/site";
 import { Clock } from "./Clock";
 import { isVerse } from "./Dimension";
 import { sfx } from "./Sfx";
+import { HeroWeb } from "./hero-web/HeroWeb";
 
 const NAME = "SUCHINDRA";
 const FROM = "SPIDERMAN"; // same length: the persona resolves, letter by letter, into the person
@@ -102,6 +103,8 @@ function useWebs(section: React.RefObject<HTMLElement | null>, portrait: React.R
       return best as { x: number; y: number; d: number } | null;
     };
     const onClick = (e: MouseEvent) => {
+      // an anchor of the 3D web took this click (it pulses instead)
+      if (e.defaultPrevented) return;
       if ((e.target as HTMLElement).closest("a,button") || onFigure(e.clientX, e.clientY)) return;
       const r = el.getBoundingClientRect();
       const x = e.clientX - r.left, y = e.clientY - r.top;
@@ -261,6 +264,9 @@ export function Hero() {
 
   return (
     <section ref={section} id="top" aria-labelledby="name" className="relative h-[100svh] min-h-[620px] overflow-hidden bg-void">
+      {/* THE WEB: a dimensional web behind the portrait (decorative, lazy, WebGL) */}
+      <HeroWeb host={section} />
+
       {/* The portrait: the two supplied images, registered, bottom-centred */}
       <div ref={portrait} className="portrait-in absolute bottom-0 left-1/2 z-[2] aspect-[771/1018] h-[84svh] -translate-x-1/2 md:h-[96svh]">
         <Reveal className="portrait-frame absolute inset-0" />
