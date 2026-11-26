@@ -4,11 +4,19 @@
  * (Kajiya-Kay style): a neutral key light and a very low crimson rim from behind. Hubs and the five
  * interactive anchors are one small point layer.
  *
- * Renders only while something changes (construction, a pulse, the camera easing, hover), and not
- * at all while the hero is off screen or the tab is hidden. See docs/interactive/HERO-WEB.md.
+ * Renders only while something changes (construction, a pulse, the camera easing, hover, the page
+ * scrolling), and not at all while it is off screen or the tab is hidden. See
+ * docs/interactive/HERO-WEB.md.
+ *
+ * Phase 4 (docs/interactive/PHASE4-DARKROOM-LINE.md): the canvas is one sticky screen behind the
+ * hero AND the project gallery. As the page scrolls the web tilts back and dims (it follows the
+ * scroll position; nothing plays on its own), and one crimson thread leaves the near web and falls
+ * to the centre of the gallery's rail, where it holds the project in front. Its far end is read
+ * from the page every frame, so the strand and the rail never come apart.
  */
 import * as THREE from "three";
 import { buildWeb, type V3, type WebData } from "./geometry";
+import { railNode } from "../showcase/thread";
 
 const FOV = 32;
 const CAM_Z = 12;
@@ -22,6 +30,7 @@ const threadVert = /* glsl */ `
   uniform vec2 uRes; uniform float uDpr; uniform float uTime; uniform vec3 uCam;
   uniform vec2 uPointer; uniform float uPointerAmt;
   uniform vec4 uPulse[${MAX_PULSES}]; uniform vec4 uHover; uniform float uVerse;
+  uniform float uFade; uniform float uThread;
   varying float vT; varying float vProg; varying float vDist; varying float vHalf; varying float vCore;
   varying vec3 vColor; varying float vSoft; varying float vCover;
 
@@ -39,8 +48,9 @@ const threadVert = /* glsl */ `
     vec2 d0 = (n0 - uPointer) * asp, d1 = (n1 - uPointer) * asp;
     float f0 = exp(-dot(d0, d0) / 0.03), f1 = exp(-dot(d1, d1) / 0.03);
     float nearK0 = clamp(14.0 / c0.w, 0.4, 1.6), nearK1 = clamp(14.0 / c1.w, 0.4, 1.6);
-    n0 += normalize(d0 + 1e-5) / asp * f0 * 0.014 * uPointerAmt * nearK0;
-    n1 += normalize(d1 + 1e-5) / asp * f1 * 0.014 * uPointerAmt * nearK1;
+    float isThread = step(1.5, aStyle.w); // the gallery's thread: its ends must stay put
+    n0 += normalize(d0 + 1e-5) / asp * f0 * 0.014 * uPointerAmt * nearK0 * (1.0 - isThread);
+    n1 += normalize(d1 + 1e-5) / asp * f1 * 0.014 * uPointerAmt * nearK1 * (1.0 - isThread);
 
     vec2 s0 = (n0 * 0.5 + 0.5) * uRes, s1 = (n1 * 0.5 + 0.5) * uRes;
     vec2 dir = s1 - s0; float dl = length(dir); dir = dl > 1e-4 ? dir / dl : vec2(1.0, 0.0);
@@ -89,7 +99,8 @@ const threadVert = /* glsl */ `
 
     // depth: far threads fade toward black
     float depth = clamp(1.0 - (w - 9.0) / 22.0, 0.22, 1.0);
-    vColor = col * aStyle.y * depth;
+    // the web dims as the page scrolls into the work; the thread is plain crimson silk
+    vColor = mix(col * aStyle.y * depth * uFade, crimson * (0.82 + tip * 0.5) * uThread, isThread);
   }
 `;
 
@@ -111,7 +122,7 @@ const pointVert = /* glsl */ `
   attribute float aKind; // 0 = hub, 1 = anchor
   attribute float aIndex;
   uniform float uDpr; uniform float uTime; uniform float uHoverIndex; uniform vec4 uFlash; uniform float uFlash4;
-  uniform float uHubGlow;
+  uniform float uHubGlow; uniform float uPointFade;
   varying float vAlpha; varying float vRing;
   void main() {
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
@@ -119,7 +130,7 @@ const pointVert = /* glsl */ `
     float flash = aIndex < 0.5 ? uFlash.x : aIndex < 1.5 ? uFlash.y : aIndex < 2.5 ? uFlash.z : aIndex < 3.5 ? uFlash.w : uFlash4;
     float hov = abs(aIndex - uHoverIndex) < 0.5 ? 1.0 : 0.0;
     float hubGlow = aIndex < 1.5 ? uHubGlow * (aIndex < 0.5 ? 1.0 : 0.6) : 0.0;
-    vAlpha = clamp(hov * 0.9 + flash + hubGlow, 0.0, 1.4);
+    vAlpha = clamp(hov * 0.9 + flash + hubGlow, 0.0, 1.4) * uPointFade;
     vRing = hov;
     gl_PointSize = (10.0 + hov * 12.0 + flash * 16.0 + hubGlow * 10.0) * uDpr;
   }
@@ -177,12 +188,41 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     uPulse: { value: Array.from({ length: MAX_PULSES }, () => new THREE.Vector4(0, 0, 0, -99)) },
     uHover: { value: new THREE.Vector4(0, 0, 0, 0) },
     uVerse: { value: 0 },
+    uFade: { value: 1 },
+    uThread: { value: 1 },
   };
   const blend = { blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneFactor } as const;
   const threadMat = new THREE.ShaderMaterial({ vertexShader: threadVert, fragmentShader: threadFrag, uniforms, transparent: true, depthTest: false, depthWrite: false, ...blend });
+  // the web lives in a group, so scrolling can tilt it back without rebuilding anything
+  const web = new THREE.Group();
+  scene.add(web);
   const threads = new THREE.Mesh(quad, threadMat);
   threads.frustumCulled = false;
-  scene.add(threads);
+  web.add(threads);
+
+  // the gallery's thread: its own few segments (same quad, same shader), in world space
+  const SEG = 28;
+  const strand = new THREE.InstancedBufferGeometry();
+  strand.setAttribute("position", quad.getAttribute("position"));
+  strand.setIndex(quad.getIndex());
+  const sStart = new THREE.InstancedBufferAttribute(new Float32Array(SEG * 3), 3);
+  const sEnd = new THREE.InstancedBufferAttribute(new Float32Array(SEG * 3), 3);
+  const sT = new Float32Array(SEG * 2), sTime = new Float32Array(SEG * 2), sStyle = new Float32Array(SEG * 4);
+  for (let i = 0; i < SEG; i++) {
+    sT.set([i / SEG, (i + 1) / SEG], i * 2);
+    sStyle.set([1, 1, 0, 2], i * 4); // 1 css px, full brightness, sharp, flag 2 = the thread
+  }
+  const sTimeAttr = new THREE.InstancedBufferAttribute(sTime, 2);
+  strand.setAttribute("aStart", sStart);
+  strand.setAttribute("aEnd", sEnd);
+  strand.setAttribute("aT", new THREE.InstancedBufferAttribute(sT, 2));
+  strand.setAttribute("aTime", sTimeAttr);
+  strand.setAttribute("aStyle", new THREE.InstancedBufferAttribute(sStyle, 4));
+  strand.instanceCount = SEG;
+  const thread = new THREE.Mesh(strand, threadMat);
+  thread.frustumCulled = false;
+  thread.visible = false;
+  scene.add(thread);
 
   const pointUniforms = {
     uDpr: uniforms.uDpr,
@@ -191,12 +231,13 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     uFlash: { value: new THREE.Vector4() },
     uFlash4: { value: 0 },
     uHubGlow: { value: 0 },
+    uPointFade: { value: 1 },
   };
   const pointGeo = new THREE.BufferGeometry();
   const pointMat = new THREE.ShaderMaterial({ vertexShader: pointVert, fragmentShader: pointFrag, uniforms: pointUniforms, transparent: true, depthTest: false, depthWrite: false, ...blend });
   const points = new THREE.Points(pointGeo, pointMat);
   points.frustumCulled = false;
-  scene.add(points);
+  web.add(points);
 
   // ---- layout: build (and rebuild on a real change of shape) ----
   let data: WebData | null = null;
@@ -210,8 +251,8 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     return [camera.position.x + ray.x * k, camera.position.y + ray.y * k, z];
   };
   const resize = () => {
-    W = Math.max(1, host.clientWidth);
-    H = Math.max(1, host.clientHeight);
+    W = Math.max(1, canvas.clientWidth);
+    H = Math.max(1, canvas.clientHeight);
     dpr = Math.min(window.devicePixelRatio || 1, coarse ? 1.75 : 2);
     renderer.setPixelRatio(dpr);
     renderer.setSize(W, H, false);
@@ -234,6 +275,9 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
       quad.setAttribute("aTime", new THREE.InstancedBufferAttribute(d.time, 2));
       quad.setAttribute("aStyle", new THREE.InstancedBufferAttribute(d.style, 4));
       quad.instanceCount = d.count;
+      // the thread follows the web: it starts as the last threads finish
+      for (let i = 0; i < SEG; i++) sTime.set([d.buildEnd - 0.25, 0.9], i * 2);
+      sTimeAttr.needsUpdate = true;
       setAnchorPoints();
       chooseAnchors();
     }
@@ -250,7 +294,8 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
    */
   function chooseAnchors() {
     if (!data || !sil) return;
-    const r = canvas.getBoundingClientRect();
+    // in the hero's own frame, with the web at rest (the canvas and the hero coincide at the top)
+    const r = host.getBoundingClientRect();
     const want = coarse || W < 640 ? 4 : 5;
     const minGap = Math.min(W, H) * 0.18;
     // text and controls (rects, padded): many sit in pointer-events:none layers, so hit-testing
@@ -305,6 +350,44 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
   const flash = [0, 0, 0, 0, 0]; // one per anchor (desktop 5, phones 4)
   let visible = true;
   let raf = 0, last = 0;
+  // scroll: p = how many hero heights the page has scrolled; leave = the web fading out once the
+  // sticky canvas starts to scroll away with the end of the work (its soft lower edge, in CSS,
+  // means it never shows a line)
+  let scrollP = 0, leave = 0;
+  const layer = canvas.parentElement!;
+  const sm = (a: number, b: number, v: number) => { const x = Math.min(1, Math.max(0, (v - a) / (b - a))); return x * x * (3 - 2 * x); };
+  const readScroll = () => {
+    const hr = host.getBoundingClientRect();
+    scrollP = Math.max(0, -hr.top / Math.max(1, hr.height));
+    const vh = window.innerHeight;
+    const gone = vh - layer.getBoundingClientRect().bottom; // how far the canvas has scrolled away
+    leave = sm(0, 0.4 * vh, gone);
+    const edge = `${(Math.min(1, Math.max(0, gone / (0.25 * vh))) * 25).toFixed(1)}%`;
+    if (canvas.style.getPropertyValue("--edge") !== edge) canvas.style.setProperty("--edge", edge);
+  };
+  const tv = new THREE.Vector3(), tw = new THREE.Vector3();
+  /** Draw the thread from the near web to the rail's centre node (or hide it). */
+  const placeThread = () => {
+    const n = railNode.get();
+    if (!data || !n || !n.el.isConnected || uniforms.uThread.value < 0.002) { thread.visible = false; return; }
+    const cr = canvas.getBoundingClientRect(), er = n.el.getBoundingClientRect();
+    const sx = (er.left + n.x - cr.left) / W, sy = (er.top + n.y - cr.top) / H;
+    tv.set(...data.threadFrom).applyMatrix4(web.matrixWorld);
+    ray.set(sx * 2 - 1, 1 - sy * 2, 0.5).unproject(camera).sub(camera.position).normalize();
+    const k = (tv.z - camera.position.z) / ray.z;
+    tw.copy(camera.position).addScaledVector(ray, k);
+    const L = tv.distanceTo(tw);
+    const a = sStart.array as Float32Array, b = sEnd.array as Float32Array;
+    const pt = (u: number, o: Float32Array, j: number) => {
+      o[j] = tv.x + (tw.x - tv.x) * u;
+      o[j + 1] = tv.y + (tw.y - tv.y) * u - Math.sin(Math.PI * u) * 0.012 * L; // a little sag
+      o[j + 2] = tv.z + (tw.z - tv.z) * u;
+    };
+    for (let i = 0; i < SEG; i++) { pt(i / SEG, a, i * 3); pt((i + 1) / SEG, b, i * 3); }
+    sStart.needsUpdate = true;
+    sEnd.needsUpdate = true;
+    thread.visible = true;
+  };
   const stats = { frames: 0, slow: 0, worst: 0, sum: 0, dts: [] as number[] };
 
   const firePulse = (p: V3, t: number) => {
@@ -346,6 +429,18 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     camera.lookAt(...LOOK);
     camera.updateMatrixWorld();
     uniforms.uCam.value.copy(camera.position);
+
+    // scrolling into the work: the web tilts back, rises and dims; the thread brightens a little.
+    // Under reduced motion it only dims.
+    const e = sm(0.12, 0.95, scrollP), tilt = opts.reducedMotion ? 0 : e;
+    const drift = opts.reducedMotion ? 0 : Math.min(1.5, Math.max(0, scrollP - 0.95) * 1.4); // keeps rising, slowly
+    web.position.set(-0.9 * tilt, 2.9 * tilt + drift, -2 * tilt);
+    web.rotation.x = -0.35 * tilt;
+    web.updateMatrixWorld();
+    uniforms.uFade.value = (1 - 0.66 * e) * (1 - leave);
+    uniforms.uThread.value = (0.45 + 0.55 * sm(0, 0.25, scrollP)) * (1 - leave);
+    pointUniforms.uPointFade.value = (1 - sm(0.05, 0.3, scrollP)) * (1 - leave);
+    placeThread();
     pointerAmt += (pointerTarget - pointerAmt) * (1 - Math.exp(-dt * 6));
     pointerTarget *= Math.exp(-dt * 1.6); // the web relaxes when the pointer rests
     uniforms.uPointerAmt.value = pointerAmt;
@@ -377,7 +472,7 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
   // ---- input (listening on the hero, never blocking it) ----
   const anchorScreen = (i: number) => {
     const a = data!.anchors[i];
-    ray.set(a[0], a[1], a[2]).project(camera);
+    ray.set(a[0], a[1], a[2]).applyMatrix4(web.matrixWorld).project(camera);
     return [(ray.x * 0.5 + 0.5) * W, (1 - (ray.y * 0.5 + 0.5)) * H];
   };
   // an anchor hidden behind his figure (or off screen) is not interactive: tapping his face
@@ -412,7 +507,7 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     return false;
   };
   const pickAnchor = (cx: number, cy: number) => {
-    if (!data || !built) return -1;
+    if (!data || !built || scrollP > 0.3) return -1; // anchors belong to the hero
     const r = canvas.getBoundingClientRect();
     const x = cx - r.left, y = cy - r.top;
     let best = -1, bd = coarse ? 34 : 22;
@@ -483,10 +578,16 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
   const ro = new ResizeObserver(() => { resize(); kick(); });
   const onVis = () => { if (!document.hidden) kick(); };
   const onDim = () => kick();
+  const onScroll = () => { readScroll(); kick(); };
+  const offRail = railNode.on(kick);
 
   resize();
-  io.observe(host);
+  readScroll();
+  io.observe(canvas);
+  ro.observe(canvas);
   ro.observe(host);
+  window.addEventListener("scroll", onScroll, { passive: true });
+  document.documentElement.dataset.webThread = "1"; // the gallery hides its fallback thread
   host.addEventListener("pointermove", onMove, { passive: true });
   host.addEventListener("pointerdown", onMove, { passive: true });
   host.addEventListener("pointerleave", onLeave);
@@ -496,7 +597,11 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
   document.addEventListener("visibilitychange", onVis);
   window.addEventListener("swing-shift:dimension", onDim);
   // read-only diagnostics for QA (frame timings, size, anchor positions)
-  (window as unknown as { __heroWeb?: unknown }).__heroWeb = { stats, get segments() { return data?.count ?? 0; }, get dpr() { return dpr; }, anchors: () => (data ? data.anchors.map((_, i) => anchorScreen(i)) : []) };
+  (window as unknown as { __heroWeb?: unknown }).__heroWeb = { stats, get segments() { return data?.count ?? 0; }, get dpr() { return dpr; }, anchors: () => (data ? data.anchors.map((_, i) => anchorScreen(i)) : []), thread: () => {
+    if (!thread.visible) return null;
+    const scr = (v: THREE.Vector3) => { const q = v.clone().project(camera); return [Math.round((q.x * 0.5 + 0.5) * W), Math.round((1 - (q.y * 0.5 + 0.5)) * H)]; };
+    return { from: scr(tv), to: scr(tw), p: +scrollP.toFixed(3) };
+  } };
   kick();
 
   return {
@@ -512,8 +617,12 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
       host.removeEventListener("touchend", onTouchEnd, true);
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("swing-shift:dimension", onDim);
+      window.removeEventListener("scroll", onScroll);
+      offRail();
+      delete document.documentElement.dataset.webThread;
       host.style.cursor = "";
       quad.dispose();
+      strand.dispose();
       pointGeo.dispose();
       threadMat.dispose();
       pointMat.dispose();

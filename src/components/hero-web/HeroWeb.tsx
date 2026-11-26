@@ -4,15 +4,16 @@ import { useEffect, useRef } from "react";
 import { isVerse } from "../Dimension";
 
 /**
- * THE WEB: the dimensional web behind the portrait. Decorative: the canvas is aria-hidden and
- * never takes pointer events; it listens on the hero instead, so every existing control works.
+ * THE WEB: the dimensional web behind the portrait, carried on behind the project gallery (one
+ * sticky canvas inside <Continuum>). Decorative: the canvas is aria-hidden and never takes pointer
+ * events; it listens on the hero instead, so every existing control works.
  * three.js is loaded only after the page has painted, so the hero never waits for WebGL; if WebGL
  * is unavailable the hero simply stays as it was.
  */
 /** Module state lives as long as the document: client navigation keeps it, a reload resets it. */
 let builtThisLoad = false;
 
-export function HeroWeb({ host }: { host: React.RefObject<HTMLElement | null> }) {
+export function HeroWeb({ scope }: { scope: React.RefObject<HTMLElement | null> }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     let live = true;
@@ -25,8 +26,9 @@ export function HeroWeb({ host }: { host: React.RefObject<HTMLElement | null> })
     const startAt = Math.max(performance.now() + 120, 900);
     const go = () =>
       import("./scene").then(({ createHeroWeb }) => {
-        if (!live || !canvas.current || !host.current) return;
-        handle = createHeroWeb(canvas.current, host.current, { reducedMotion, built: seen, verse: isVerse, startAt });
+        const host = scope.current?.querySelector<HTMLElement>("#top");
+        if (!live || !canvas.current || !host) return;
+        handle = createHeroWeb(canvas.current, host, { reducedMotion, built: seen, verse: isVerse, startAt });
         if (handle) {
           canvas.current.dataset.ready = "true";
           builtThisLoad = true;
@@ -39,6 +41,7 @@ export function HeroWeb({ host }: { host: React.RefObject<HTMLElement | null> })
       if (!idle) window.clearTimeout(id);
       handle?.dispose();
     };
-  }, [host]);
-  return <canvas ref={canvas} aria-hidden="true" className="hero-web pointer-events-none absolute inset-0 z-[1] h-full w-full" />;
+  }, [scope]);
+  // one screen tall and sticky: it stays behind whatever part of the hero or the gallery is on screen
+  return <canvas ref={canvas} aria-hidden="true" className="hero-web pointer-events-none sticky top-0 block h-[100svh] w-full" />;
 }

@@ -4,22 +4,24 @@ import { useEffect, useState } from "react";
 
 /**
  * TWO EARTHS. The site exists in two dimensions with the same content:
- *   The Verse:   the pages inked as a comic book (halftone, misregistered plates, caption
- *                boxes, SFX, motion on twos). The default, by the owner's choice (2026-11-26).
- *   Earth-Prime: the approved cinematic night edition. See docs/interactive/PLAN.md.
+ *   Earth-Prime: the cinematic night edition. The default, by the owner's choice (Phase 4,
+ *                2026-11-27, docs/interactive/PHASE4-DARKROOM-LINE.md).
+ *   The Verse:   the pages inked as a comic book (halftone, misregistered plates, caption boxes,
+ *                SFX, motion on twos), one switch (or V) away. The project gallery keeps the same
+ *                structure in both; the Verse only changes three of its tokens.
  *
- * The dimension lives on <html data-verse>. A tiny inline script in the layout sets the Verse before
- * paint on every full load, so every link to the site shows the same thing first. A jump to
- * Earth-Prime holds while you move around the site (client navigation keeps the attribute) and is
- * not remembered across reloads. Without JavaScript the page stays in Earth-Prime.
+ * The dimension lives on <html data-verse>. A tiny inline script in the layout clears it before
+ * paint on every full load, so every link to the site opens in Earth-Prime. A jump to the Verse
+ * holds while you move around the site (client navigation keeps the attribute) and is not
+ * remembered across reloads. Without JavaScript the page stays in Earth-Prime.
  */
 const HINTED = "swing-shift:hinted";
 export const DIMENSION_EVENT = "swing-shift:dimension";
 
 export const isVerse = () => typeof document !== "undefined" && document.documentElement.dataset.verse === "1";
 
-/** Inline, pre-paint: every full load opens in the Verse. */
-export const dimensionBootScript = `document.documentElement.dataset.verse="1"`;
+/** Inline, pre-paint: every full load opens in Earth-Prime. */
+export const dimensionBootScript = `delete document.documentElement.dataset.verse`;
 
 function set(on: boolean) {
   const html = document.documentElement;
@@ -77,7 +79,7 @@ export function DimensionSwitch() {
 
 /**
  * Mounted once. Owns the V shortcut, the glitch overlay and the one-time hint: after the hero's
- * intro, a first-time visitor sees a two-frame glitch and a caption box pointing to Earth-Prime.
+ * intro, a first-time visitor sees a two-frame flicker and one quiet line pointing to the Verse.
  */
 export function DimensionRoot() {
   const [hint, setHint] = useState(false);
@@ -131,10 +133,11 @@ export function DimensionRoot() {
         <span className="glitch-band glitch-band--3" />
         <span className="glitch-band glitch-band--4" />
       </div>
-      <p role="status" className={`dimension-hint caption-box fixed right-5 top-[64px] z-[60] max-w-[17rem] md:right-10 md:top-[78px] ${hint ? "is-on" : ""}`}>
+      <p role="status" className={`dimension-hint fixed right-5 top-[92px] z-[60] md:right-10 md:top-[78px] ${hint ? "is-on" : ""}`}>
         {hint && (
           <>
-            Psst. There’s a cinematic night edition too. <button type="button" onClick={() => jump(false)} className="underline decoration-2 underline-offset-2">Jump</button> or press <kbd>V</kbd>.
+            <kbd className="dimension-hint__key">V</kbd> The Verse, a comic edition <span aria-hidden="true">·</span>{" "}
+            <button type="button" onClick={() => jump(true)}>Switch</button>
           </>
         )}
       </p>

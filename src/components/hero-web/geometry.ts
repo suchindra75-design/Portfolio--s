@@ -23,6 +23,8 @@ export type WebData = {
   junctions: V3[]; // places where threads meet: anchor candidates
   hubs: V3[]; // the two hubs (world), for the construction light
   buildEnd: number; // when the last thread finishes (s)
+  /** where the gallery's thread leaves the near web: a frame point low on its lower side (Phase 4) */
+  threadFrom: V3;
 };
 
 type Opts = { width: number; bright: number; soft?: number; start: number; dur: number };
@@ -275,7 +277,15 @@ export function buildWeb({ at, mobile }: Layout): WebData {
   // anchor candidates: the hubs and every real junction (frame corners, bridge ends). The scene
   // picks the ones that are actually visible and reachable on this page (see scene.ts).
   const junctions = [...A.ends, ...B.ends, ...bridgeA, ...bridgeB, ...A.knots, ...B.knots];
-  return { count, start, end, t, time, style, anchors: [A.hub, B.hub], junctions, hubs: [A.hub, B.hub], buildEnd };
+
+  // the thread (Phase 4): it leaves a radial of the near web close to its hub, high up, and falls
+  // to the gallery's rail (so it always comes down into it); the scene draws it, because its far
+  // end follows the page
+  const aim = mobile ? at(0.68, 0.12, -1.5) : at(0.72, 0.18, -1.5);
+  let threadFrom = A.knots[0];
+  for (const e of [...A.knots, ...A.ends]) if (len(sub(e, aim)) < len(sub(threadFrom, aim))) threadFrom = e;
+
+  return { count, start, end, t, time, style, anchors: [A.hub, B.hub], junctions, hubs: [A.hub, B.hub], buildEnd, threadFrom };
 }
 
 export const v3 = { add, sub, mul, len, lerp };

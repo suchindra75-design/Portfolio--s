@@ -13,7 +13,8 @@ gsap.registerPlugin(ScrollTrigger);
  *   Earth-Prime: slow and weighty. Headings rise, screens drift inside their lit windows.
  *   The Verse:   motion on twos. Caption boxes slap on, headings stutter in, the work's panels drop
  *                onto the skyline one after another.
- * The hero (#top) is left alone: its portrait and the 3D web behind it must stay registered.
+ * The hero (#top) is left alone: its portrait and the 3D web behind it must stay registered. So is
+ * the work's gallery (#work): it has its own physical motion (Phase 4).
  * Rebuilt on every page and every dimension jump. Nothing runs under reduced motion.
  */
 const ON_TWOS = "steps(4)";
@@ -22,7 +23,7 @@ const DONE = { clearProps: "transform,opacity" };
 
 function prime(main: HTMLElement) {
   main.querySelectorAll<HTMLElement>("section h2.display, header h1.display").forEach((h) => {
-    if (h.closest("#top")) return;
+    if (h.closest("#top, #work")) return;
     gsap.from(h, { y: 56, opacity: 0, duration: 1.3, ease: "power3.out", ...DONE, scrollTrigger: { trigger: h, start: "top 88%", once: true } });
   });
   main.querySelectorAll<HTMLElement>(".lit-window").forEach((w) => {
@@ -30,30 +31,20 @@ function prime(main: HTMLElement) {
     if (!img) return;
     gsap.fromTo(img, { yPercent: -4, scale: 1.1 }, { yPercent: 4, scale: 1.1, ease: "none", scrollTrigger: { trigger: w, start: "top bottom", end: "bottom top", scrub: 1 } });
   });
-  // the rooftops' list items, not the towers: a tower's own transform belongs to its CSS
-  const roofs = gsap.utils.toArray<HTMLElement>("#work ul > li");
-  if (roofs.length && matchMedia("(min-width: 1024px)").matches) {
-    gsap.from(roofs, { y: 70, opacity: 0, duration: 1.2, ease: "power3.out", stagger: 0.09, ...DONE, scrollTrigger: { trigger: "#work ul", start: "top 85%", once: true } });
-  }
 }
 
 function verse(main: HTMLElement) {
   main.querySelectorAll<HTMLElement>(".verse-caption").forEach((c) => {
-    if (c.closest("#top")) return;
+    if (c.closest("#top, #work")) return;
     gsap.from(c, { scale: 0.35, rotate: -9, opacity: 0, duration: 0.3, ease: ON_TWOS, ...DONE, scrollTrigger: { trigger: c, start: "top 90%", once: true } });
   });
   main.querySelectorAll<HTMLElement>("section h2.display, header h1.display").forEach((h) => {
-    if (h.closest("#top")) return;
+    if (h.closest("#top, #work")) return;
     gsap.from(h, { x: -36, opacity: 0, duration: 0.42, ease: "steps(5)", ...DONE, scrollTrigger: { trigger: h, start: "top 88%", once: true } });
   });
   main.querySelectorAll<HTMLElement>(".lit-window").forEach((w) => {
     gsap.from(w, { x: -28, y: 18, rotate: -2.5, opacity: 0, duration: 0.36, ease: ON_TWOS, ...DONE, scrollTrigger: { trigger: w, start: "top 85%", once: true } });
   });
-  // the work: six panels drop onto the skyline, one after another, when the row comes into view
-  const roofs = gsap.utils.toArray<HTMLElement>("#work ul > li");
-  if (roofs.length && matchMedia("(min-width: 1024px)").matches) {
-    gsap.from(roofs, { yPercent: -14, rotate: (k: number) => (k % 2 ? 3 : -3), opacity: 0, duration: 0.3, ease: "steps(3)", stagger: 0.12, ...DONE, scrollTrigger: { trigger: "#work ul", start: "top 80%", once: true } });
-  }
 }
 
 export function ScrollMotion() {

@@ -3,156 +3,64 @@ import { ViewTransition } from "react";
 import type { Project } from "@/content/projects";
 
 /**
- * Six frames, one system (16:10, hairline, registration ticks, an honest note in the frame), six
- * compositions. Every screen is the project's real capture; every diagram states only what its
- * case study states, and repeats it in text nearby for screen readers. Nothing is redrawn as if
- * it were the product.
+ * What hangs in each frame of the gallery (Phase 4, docs/interactive/PHASE4-DARKROOM-LINE.md).
+ * Every screen is the project's real capture; INFINOS is a short clip of the real website recording;
+ * ESP32 has no hardware photo, so it is a drawing, stamped CONCEPT. Nothing is redrawn as if it were
+ * the product. The honest note for each frame sits under it, in the gallery (NOTES below).
  */
 
-/** The screenshot that morphs into the case study's lit window (one per page: only the active project renders). */
-function Shot({ p, className = "", position, sizes = "(min-width:1024px) 60vw, 100vw" }: { p: Project; className?: string; position?: string; sizes?: string }) {
-  if (!p.screen) return null;
+/** The one line under the active frame: what a reviewer must know before trusting the picture. */
+export const NOTES: Record<string, { lead: string; rest: string }> = {
+  raya: { lead: "Built on MARK XLIX · FatihMakes", rest: "screenshot predates the rename" },
+  infinos: { lead: "Provisional 3D model", rest: "awaiting INFINOS Tech’s approval · © INFINOS Tech" },
+  "infinos-telemetry": { lead: "Hosted demo offline", rest: "© INFINOS Tech" },
+  "brain-matrix": { lead: "Research use only", rest: "not for diagnosis" },
+  "simplein-school": { lead: "Staging demo", rest: "a fictional school" },
+  "esp32-home-automation": { lead: "Concept", rest: "a drawing, not a build · the firmware isn’t available" },
+};
+
+/** INFINOS: 20–27 s of the owner's desktop recording of the website (the inner box lifting out). */
+export const INFINOS_CLIP = { src: "/work/infinos-clip.mp4", poster: "/work/infinos-clip-poster.jpg" };
+
+const SIZES = "(min-width:1024px) 60vw, (min-width:720px) 70vw, 82vw";
+
+/**
+ * The frame's picture, named `shot-<slug>`: when its case study opens, it morphs into that page's
+ * lit window (each slug appears once on the page, so each name is unique).
+ */
+export function FrameMedia({ p, eager, video }: { p: Project; eager?: boolean; video?: React.Ref<HTMLVideoElement> }) {
+  let media: React.ReactNode;
+  if (p.slug === "infinos") {
+    media = (
+      <video
+        ref={video}
+        src={INFINOS_CLIP.src}
+        poster={INFINOS_CLIP.poster}
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        aria-label="INFINOS website screen recording: the provisional 3D bag model, its inner box lifting out"
+        className="dl-media__el"
+      />
+    );
+  } else if (p.screen) {
+    media = <Image src={p.screen.src} alt={p.screen.alt} fill sizes={SIZES} draggable={false} loading={eager ? "eager" : "lazy"} className="dl-media__el" />;
+  } else {
+    media = <Esp32 />;
+  }
   return (
     <ViewTransition name={`shot-${p.slug}`} share="morph" default="none">
-      <div className={`absolute inset-0 ${className}`}>
-        <Image src={p.screen.src} alt={p.screen.alt} fill sizes={sizes} className="object-cover" style={{ objectPosition: position ?? "center" }} />
-      </div>
+      <div className="dl-media__in">{media}</div>
     </ViewTransition>
   );
 }
 
-/** A signal path: the steps a project's data or commands move through. */
-function Path({ steps, label, tone = "dark" }: { steps: string[]; label: string; tone?: "dark" | "light" }) {
-  return (
-    <div className={`sc-path sc-path--${tone}`}>
-      <span className="sc-path__label">{label}</span>
-      <ol className="sc-path__steps">
-        {steps.map((s, k) => (
-          <li key={s}>
-            {k > 0 && <span aria-hidden="true" className="sc-path__wire" />}
-            <span className="sc-path__step">{s}</span>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-function Note({ children, corner = "bl", tone = "dark" }: { children: React.ReactNode; corner?: "bl" | "br" | "tl" | "tr"; tone?: "dark" | "light" }) {
-  return <p className={`sc-note sc-note--${corner} sc-note--${tone}`}>{children}</p>;
-}
-
-function Raya({ p }: { p: Project }) {
-  return (
-    <>
-      <Shot p={p} className="sc-raya__shot" />
-      <div aria-hidden="true" className="sc-raya__shade" />
-      <Note corner="tr">Screenshot predates the rename · shows “JARVIS”</Note>
-      <div className="sc-raya__path">
-        <Path label="How it listens and acts" steps={["Your voice", "Speaker filter", "Gemini Live", "Allow / Deny gate", "Your Mac"]} />
-      </div>
-      <Note corner="tl">Built on MARK XLIX · FatihMakes</Note>
-    </>
-  );
-}
-
-function Infinos({ p }: { p: Project }) {
-  return (
-    <>
-      <Shot p={p} position="52% 45%" />
-      {/* the 360° viewer, as an orbit round the real render */}
-      <svg aria-hidden="true" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" className="sc-orbit absolute inset-0 h-full w-full">
-        <ellipse cx="830" cy="560" rx="470" ry="120" className="sc-orbit__ring" />
-        {Array.from({ length: 36 }, (_, k) => {
-          const t = (k / 36) * Math.PI * 2;
-          const x = 830 + Math.cos(t) * 470, y = 560 + Math.sin(t) * 120;
-          const x2 = 830 + Math.cos(t) * (k % 9 === 0 ? 500 : 484), y2 = 560 + Math.sin(t) * (k % 9 === 0 ? 132 : 126);
-          return <line key={k} x1={x} y1={y} x2={x2} y2={y2} className={k % 9 === 0 ? "sc-orbit__tick sc-orbit__tick--major" : "sc-orbit__tick"} />;
-        })}
-        <text x="1316" y="566" className="sc-orbit__deg">360°</text>
-      </svg>
-      <Note corner="tl">Provisional 3D model · awaiting INFINOS Tech’s approval</Note>
-      <Note corner="br">© INFINOS Tech</Note>
-    </>
-  );
-}
-
-function Telemetry({ p }: { p: Project }) {
-  return (
-    <>
-      <div aria-hidden="true" className="sc-tele__ground" />
-      <div className="sc-tele__browser">
-        <div aria-hidden="true" className="sc-tele__bar">
-          <i />
-          <i />
-          <i />
-          <span>Web dashboard</span>
-        </div>
-        <div className="sc-tele__screen">
-          <Shot p={p} position="left top" sizes="(min-width:1024px) 48vw, 90vw" />
-        </div>
-      </div>
-      <div className="sc-tele__path">
-        <Path label="Data path" steps={["Bag sensors", "ThingSpeak", "Sync worker", "Express + Postgres", "Web · Flutter"]} />
-      </div>
-      <Note corner="tr">Hosted demo offline · © INFINOS Tech</Note>
-    </>
-  );
-}
-
-function BrainMatrix({ p }: { p: Project }) {
-  return (
-    <>
-      <Shot p={p} className="sc-brain__shot" position="left top" />
-      {/* a magnified inset of its own waveform rows: the same capture, cropped, nothing redrawn */}
-      <div aria-hidden="true" className="sc-brain__lens">
-        {p.screen && <Image src={p.screen.src} alt="" width={1600} height={1000} sizes="40vw" className="sc-brain__lens-img" />}
-        <span className="sc-brain__lens-label">EEG · EOG · eye movements, magnified from the same screen</span>
-      </div>
-      <Note corner="tl">Research use only · not for diagnosis</Note>
-    </>
-  );
-}
-
-function Simplein({ p }: { p: Project }) {
-  return (
-    <>
-      <div className="sc-school__shot">
-        <Shot p={p} position="left top" sizes="(min-width:1024px) 40vw, 62vw" />
-      </div>
-      <div className="sc-school__arch">
-        <svg viewBox="0 0 300 330" aria-hidden="true" className="h-full w-full">
-          {["School admin", "Teacher", "Parent", "Student"].map((r, k) => (
-            <g key={r}>
-              <rect x={6 + k * 73} y="18" width="66" height="40" className="sc-arch__box" />
-              <text x={39 + k * 73} y="42" textAnchor="middle" className="sc-arch__t">{r}</text>
-              <path d={`M${39 + k * 73} 58 C ${39 + k * 73} 92, 150 86, 150 118`} className="sc-arch__wire" />
-            </g>
-          ))}
-          <rect x="70" y="118" width="160" height="44" className="sc-arch__box sc-arch__box--api" />
-          <text x="150" y="137" textAnchor="middle" className="sc-arch__t sc-arch__t--b">/api/v1</text>
-          <text x="150" y="152" textAnchor="middle" className="sc-arch__t">school from the session</text>
-          <path d="M150 162 L150 196" className="sc-arch__wire" />
-          <rect x="30" y="196" width="240" height="112" className="sc-arch__box" />
-          <text x="150" y="216" textAnchor="middle" className="sc-arch__t sc-arch__t--b">Postgres · row-level security</text>
-          {[0, 1, 2].map((k) => (
-            <g key={k}>
-              <rect x={44 + k * 74} y="232" width="64" height="58" className="sc-arch__cell" />
-              <text x={76 + k * 74} y="266" textAnchor="middle" className="sc-arch__t">School {String.fromCharCode(65 + k)}</text>
-            </g>
-          ))}
-        </svg>
-        <p className="sr-only">Four role portals (school admin, teacher, parent, student) call a versioned API under /api/v1, which takes the school only from the session; Postgres row-level security keeps every school’s rows apart.</p>
-      </div>
-      <Note corner="bl" tone="light">Staging demo · a fictional school</Note>
-    </>
-  );
-}
-
+/** ESP32 Home Automation: a concept drawing (no photo of the prototype exists). */
 function Esp32() {
   return (
     <>
-      <svg viewBox="0 0 1600 1000" aria-hidden="true" className="sc-esp absolute inset-0 h-full w-full">
+      <svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true" className="sc-esp dl-media__el">
         <defs>
           <pattern id="esp-grid" width="40" height="40" patternUnits="userSpaceOnUse">
             <path d="M40 0H0V40" className="sc-esp__grid" />
@@ -186,31 +94,7 @@ function Esp32() {
         ))}
         <text x="800" y="140" textAnchor="middle" className="sc-esp__stamp">CONCEPT</text>
       </svg>
-      <Note corner="bl">A drawing, not a build · the firmware isn’t available</Note>
       <p className="sr-only">Concept drawing: an ESP32 running Embedded C drives a two-channel relay module; each channel switches one household appliance.</p>
     </>
-  );
-}
-
-const COMPOSE: Record<string, (props: { p: Project }) => React.ReactNode> = {
-  raya: Raya,
-  infinos: Infinos,
-  "infinos-telemetry": Telemetry,
-  "brain-matrix": BrainMatrix,
-  "simplein-school": Simplein,
-  "esp32-home-automation": Esp32,
-};
-
-export function ProjectFrame({ p }: { p: Project }) {
-  const Compose = COMPOSE[p.slug];
-  const concept = p.evidence.includes("concept");
-  return (
-    <div className={`sc-frame sc-frame--${p.slug} ${concept ? "is-concept" : ""}`}>
-      {Compose ? <Compose p={p} /> : <Shot p={p} />}
-      <span aria-hidden="true" className="sc-tick sc-tick--tl" />
-      <span aria-hidden="true" className="sc-tick sc-tick--tr" />
-      <span aria-hidden="true" className="sc-tick sc-tick--bl" />
-      <span aria-hidden="true" className="sc-tick sc-tick--br" />
-    </div>
   );
 }
