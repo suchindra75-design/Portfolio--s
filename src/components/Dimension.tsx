@@ -3,15 +3,13 @@
 import { useEffect, useState } from "react";
 
 /**
- * TWO EARTHS. The site exists in two dimensions with the same content:
- *   The Verse:   the pages inked as a comic book (halftone, misregistered plates, caption
- *                boxes, SFX, motion on twos). The default, by the owner's choice (2026-11-26).
- *   Earth-Prime: the approved cinematic night edition. See docs/interactive/PLAN.md.
+ * TWO EARTHS. Earth-Prime, the cinematic night edition, is the site (the owner's choice, Phase 3,
+ * 2026-11-26). The Verse is an easter egg: press V (or the plates in the bar) and the HERO is
+ * re-inked as a comic panel. The projects, case studies and page transitions stay cinematic in
+ * both. See docs/interactive/PHASE3-CONTINUOUS.md.
  *
- * The dimension lives on <html data-verse>. A tiny inline script in the layout sets the Verse before
- * paint on every full load, so every link to the site shows the same thing first. A jump to
- * Earth-Prime holds while you move around the site (client navigation keeps the attribute) and is
- * not remembered across reloads. Without JavaScript the page stays in Earth-Prime.
+ * The dimension lives on <html data-verse>. Every full load opens in Earth-Prime; a jump holds
+ * while you move around the site (client navigation keeps the attribute).
  */
 const HINTED = "swing-shift:hinted";
 export const DIMENSION_EVENT = "swing-shift:dimension";
@@ -19,7 +17,7 @@ export const DIMENSION_EVENT = "swing-shift:dimension";
 export const isVerse = () => typeof document !== "undefined" && document.documentElement.dataset.verse === "1";
 
 /** Inline, pre-paint: every full load opens in the Verse. */
-export const dimensionBootScript = `document.documentElement.dataset.verse="1"`;
+export const dimensionBootScript = `delete document.documentElement.dataset.verse`;
 
 function set(on: boolean) {
   const html = document.documentElement;
@@ -134,7 +132,7 @@ export function DimensionRoot() {
       <p role="status" className={`dimension-hint caption-box fixed right-5 top-[64px] z-[60] max-w-[17rem] md:right-10 md:top-[78px] ${hint ? "is-on" : ""}`}>
         {hint && (
           <>
-            Psst. There’s a cinematic night edition too. <button type="button" onClick={() => jump(false)} className="underline decoration-2 underline-offset-2">Jump</button> or press <kbd>V</kbd>.
+            Psst. The hero has a comic-book side. <button type="button" onClick={() => jump(true)} className="underline decoration-2 underline-offset-2">Jump</button> or press <kbd>V</kbd>.
           </>
         )}
       </p>

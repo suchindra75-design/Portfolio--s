@@ -65,8 +65,10 @@ function Infinos({ p }: { p: Project }) {
         <ellipse cx="830" cy="560" rx="470" ry="120" className="sc-orbit__ring" />
         {Array.from({ length: 36 }, (_, k) => {
           const t = (k / 36) * Math.PI * 2;
-          const x = 830 + Math.cos(t) * 470, y = 560 + Math.sin(t) * 120;
-          const x2 = 830 + Math.cos(t) * (k % 9 === 0 ? 500 : 484), y2 = 560 + Math.sin(t) * (k % 9 === 0 ? 132 : 126);
+          // rounded: server and browser trigonometry differ in the last digits (hydration)
+          const r1 = (v: number) => Math.round(v * 10) / 10;
+          const x = r1(830 + Math.cos(t) * 470), y = r1(560 + Math.sin(t) * 120);
+          const x2 = r1(830 + Math.cos(t) * (k % 9 === 0 ? 500 : 484)), y2 = r1(560 + Math.sin(t) * (k % 9 === 0 ? 132 : 126));
           return <line key={k} x1={x} y1={y} x2={x2} y2={y2} className={k % 9 === 0 ? "sc-orbit__tick sc-orbit__tick--major" : "sc-orbit__tick"} />;
         })}
         <text x="1316" y="566" className="sc-orbit__deg">360°</text>

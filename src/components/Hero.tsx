@@ -6,7 +6,6 @@ import { site } from "@/content/site";
 import { Clock } from "./Clock";
 import { isVerse } from "./Dimension";
 import { sfx } from "./Sfx";
-import { HeroWeb } from "./hero-web/HeroWeb";
 
 const NAME = "SUCHINDRA";
 const FROM = "SPIDERMAN"; // same length: the persona resolves, letter by letter, into the person
@@ -254,19 +253,14 @@ export function Hero() {
     const el = section.current!;
     const onFound = () => setFound(true);
     el.addEventListener("reveal-found", onFound);
-    // warm the Verse portrait once the page is idle, so the first jump has it ready
-    const warm = window.setTimeout(() => ["/portrait/verse/base.jpg"].forEach((src) => (new Image().src = src)), 4500);
     return () => {
       el.removeEventListener("reveal-found", onFound);
-      window.clearTimeout(warm);
     };
   }, []);
 
+  // transparent: the web behind the hero is drawn by <Continuum>, shared with the work below
   return (
-    <section ref={section} id="top" aria-labelledby="name" className="relative h-[100svh] min-h-[620px] overflow-hidden bg-void">
-      {/* THE WEB: a dimensional web behind the portrait (decorative, lazy, WebGL) */}
-      <HeroWeb host={section} />
-
+    <section ref={section} id="top" aria-labelledby="name" className="relative h-[100svh] min-h-[620px] overflow-hidden">
       {/* The portrait: the two supplied images, registered, bottom-centred */}
       <div ref={portrait} className="portrait-in absolute bottom-0 left-1/2 z-[2] aspect-[771/1018] h-[84svh] -translate-x-1/2 md:h-[96svh]">
         <Reveal className="portrait-frame absolute inset-0" />

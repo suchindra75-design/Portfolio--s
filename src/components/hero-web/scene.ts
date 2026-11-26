@@ -21,7 +21,7 @@ const threadVert = /* glsl */ `
   attribute vec3 aStart; attribute vec3 aEnd; attribute vec2 aT; attribute vec2 aTime; attribute vec4 aStyle;
   uniform vec2 uRes; uniform float uDpr; uniform float uTime; uniform vec3 uCam;
   uniform vec2 uPointer; uniform float uPointerAmt;
-  uniform vec4 uPulse[${MAX_PULSES}]; uniform vec4 uHover; uniform float uVerse;
+  uniform vec4 uPulse[${MAX_PULSES}]; uniform vec4 uHover; uniform float uVerse; uniform float uDim; uniform float uRim;
   varying float vT; varying float vProg; varying float vDist; varying float vHalf; varying float vCore;
   varying vec3 vColor; varying float vSoft; varying float vCover;
 
@@ -67,7 +67,7 @@ const threadVert = /* glsl */ `
     vec3 Lk = normalize(vec3(-0.55, 0.7, 0.55));     // neutral key, upper left
     vec3 Lr = normalize(vec3(0.65, 0.2, -0.75));     // crimson rim, from behind
     vec3 silver = mix(vec3(0.60, 0.62, 0.66), vec3(0.74, 0.74, 0.76), uVerse);
-    vec3 crimson = mix(vec3(0.78, 0.09, 0.11), vec3(0.92, 0.14, 0.17), uVerse);
+    vec3 crimson = mix(vec3(0.78, 0.09, 0.11), vec3(0.92, 0.14, 0.17), uVerse) * uRim; // the rim cools as you descend
     float spk = fibre(T, Lk, V, 56.0), spr = fibre(T, Lr, V, 22.0);
     // mostly dim charcoal silk; the fibre glints carry it
     vec3 col = silver * (0.06 + 0.1 * wrap(T, Lk)) + vec3(0.95, 0.94, 0.92) * spk * 0.62 + crimson * (spr * 0.3 + wrap(T, Lr) * 0.012);
@@ -89,7 +89,7 @@ const threadVert = /* glsl */ `
 
     // depth: far threads fade toward black
     float depth = clamp(1.0 - (w - 9.0) / 22.0, 0.22, 1.0);
-    vColor = col * aStyle.y * depth;
+    vColor = col * aStyle.y * depth * uDim;
   }
 `;
 
@@ -111,7 +111,7 @@ const pointVert = /* glsl */ `
   attribute float aKind; // 0 = hub, 1 = anchor
   attribute float aIndex;
   uniform float uDpr; uniform float uTime; uniform float uHoverIndex; uniform vec4 uFlash; uniform float uFlash4;
-  uniform float uHubGlow;
+  uniform float uHubGlow; uniform float uPtsDim;
   varying float vAlpha; varying float vRing;
   void main() {
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
@@ -119,7 +119,7 @@ const pointVert = /* glsl */ `
     float flash = aIndex < 0.5 ? uFlash.x : aIndex < 1.5 ? uFlash.y : aIndex < 2.5 ? uFlash.z : aIndex < 3.5 ? uFlash.w : uFlash4;
     float hov = abs(aIndex - uHoverIndex) < 0.5 ? 1.0 : 0.0;
     float hubGlow = aIndex < 1.5 ? uHubGlow * (aIndex < 0.5 ? 1.0 : 0.6) : 0.0;
-    vAlpha = clamp(hov * 0.9 + flash + hubGlow, 0.0, 1.4);
+    vAlpha = clamp(hov * 0.9 + flash + hubGlow, 0.0, 1.4) * uPtsDim;
     vRing = hov;
     gl_PointSize = (10.0 + hov * 12.0 + flash * 16.0 + hubGlow * 10.0) * uDpr;
   }
@@ -177,6 +177,8 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     uPulse: { value: Array.from({ length: MAX_PULSES }, () => new THREE.Vector4(0, 0, 0, -99)) },
     uHover: { value: new THREE.Vector4(0, 0, 0, 0) },
     uVerse: { value: 0 },
+    uDim: { value: 1 },
+    uRim: { value: 1 },
   };
   const blend = { blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneFactor } as const;
   const threadMat = new THREE.ShaderMaterial({ vertexShader: threadVert, fragmentShader: threadFrag, uniforms, transparent: true, depthTest: false, depthWrite: false, ...blend });
@@ -191,6 +193,7 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     uFlash: { value: new THREE.Vector4() },
     uFlash4: { value: 0 },
     uHubGlow: { value: 0 },
+    uPtsDim: { value: 1 },
   };
   const pointGeo = new THREE.BufferGeometry();
   const pointMat = new THREE.ShaderMaterial({ vertexShader: pointVert, fragmentShader: pointFrag, uniforms: pointUniforms, transparent: true, depthTest: false, depthWrite: false, ...blend });
@@ -210,8 +213,8 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     return [camera.position.x + ray.x * k, camera.position.y + ray.y * k, z];
   };
   const resize = () => {
-    W = Math.max(1, host.clientWidth);
-    H = Math.max(1, host.clientHeight);
+    W = Math.max(1, canvas.clientWidth);
+    H = Math.max(1, canvas.clientHeight);
     dpr = Math.min(window.devicePixelRatio || 1, coarse ? 1.75 : 2);
     renderer.setPixelRatio(dpr);
     renderer.setSize(W, H, false);
@@ -304,6 +307,18 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
   let hoverIndex = -1, hoverAmt = 0;
   const flash = [0, 0, 0, 0, 0]; // one per anchor (desktop 5, phones 4)
   let visible = true;
+  // the descent (Phase 3): how far below the hero the page has scrolled, in hero heights
+  const heroEl = host.querySelector<HTMLElement>("#top");
+  let descend = 0, descendNow = 0, endFade = 1;
+  const DESCEND = 4.2; // world units per hero height: slower than the page, so the web reads as deep
+  const readScroll = () => {
+    const r = host.getBoundingClientRect();
+    descend = Math.max(0, -r.top) / H;
+    // fade out over the last half screen, as the work section ends and the page moves on
+    endFade = Math.min(1, Math.max(0, (r.bottom - H) / (H * 0.5)));
+  };
+  /** the web is interactive (anchors, tension) only while the hero holds most of the screen */
+  const inHero = () => !heroEl || heroEl.getBoundingClientRect().bottom > H * 0.6;
   let raf = 0, last = 0;
   const stats = { frames: 0, slow: 0, worst: 0, sum: 0, dts: [] as number[] };
 
@@ -342,9 +357,17 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     const k = 1 - Math.exp(-dt * 4);
     camNow.x += (camTarget.x - camNow.x) * k;
     camNow.y += (camTarget.y - camNow.y) * k;
-    camera.position.set(camNow.x * 0.55, camNow.y * 0.35, CAM_Z);
-    camera.lookAt(...LOOK);
+    // descend through the web as the page scrolls (eased, so it glides even on a notched wheel)
+    descendNow += (descend - descendNow) * (opts.reducedMotion ? 1 : 1 - Math.exp(-dt * 7));
+    const t1 = Math.min(1, descendNow), ease = t1 * t1 * (3 - 2 * t1);
+    const dy = descendNow * DESCEND;
+    camera.position.set(camNow.x * 0.55, camNow.y * 0.35 - dy, CAM_Z - ease * 2.4);
+    camera.lookAt(LOOK[0], LOOK[1] - dy - ease * 0.8, LOOK[2]);
     camera.updateMatrixWorld();
+    const sm = (a: number, b: number, x: number) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
+    uniforms.uDim.value = (1 - 0.48 * sm(0.3, 1.3, descendNow)) * endFade;
+    uniforms.uRim.value = 1 - 0.7 * sm(0.15, 1, descendNow);
+    pointUniforms.uPtsDim.value = 1 - sm(0.1, 0.45, descendNow);
     uniforms.uCam.value.copy(camera.position);
     pointerAmt += (pointerTarget - pointerAmt) * (1 - Math.exp(-dt * 6));
     pointerTarget *= Math.exp(-dt * 1.6); // the web relaxes when the pointer rests
@@ -366,6 +389,7 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
       pointerAmt > 0.002 ||
       Math.abs(hoverAmt - (hoverIndex >= 0 ? 1 : 0)) > 0.002 ||
       flash.some((f) => f > 0.004) ||
+      Math.abs(descend - descendNow) > 1e-4 ||
       (g > 0.12 && g < 1);
     if (moving && visible && !document.hidden) raf = requestAnimationFrame(frame);
     else last = 0;
@@ -412,7 +436,7 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     return false;
   };
   const pickAnchor = (cx: number, cy: number) => {
-    if (!data || !built) return -1;
+    if (!data || !built || !inHero()) return -1;
     const r = canvas.getBoundingClientRect();
     const x = cx - r.left, y = cy - r.top;
     let best = -1, bd = coarse ? 34 : 22;
@@ -428,10 +452,17 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     const r = canvas.getBoundingClientRect();
     const nx = ((e.clientX - r.left) / r.width) * 2 - 1, ny = 1 - ((e.clientY - r.top) / r.height) * 2;
     if (opts.reducedMotion) return;
-    camTarget.set(nx, ny).multiplyScalar(e.pointerType === "touch" ? 0.5 : 1);
-    uniforms.uPointer.value.set(nx, ny);
-    pointerTarget = 1;
-    if (e.pointerType !== "touch") {
+    const hero = inHero();
+    // over the projects the web only drifts a little with the pointer: it is a backdrop there
+    camTarget.set(nx, ny).multiplyScalar((e.pointerType === "touch" ? 0.5 : 1) * (hero ? 1 : 0.3));
+    if (hero) {
+      uniforms.uPointer.value.set(nx, ny);
+      pointerTarget = 1;
+    } else if (hoverIndex >= 0) {
+      hoverIndex = -1;
+      host.style.cursor = "";
+    }
+    if (hero && e.pointerType !== "touch") {
       const h = pickAnchor(e.clientX, e.clientY);
       if (h !== hoverIndex) {
         hoverIndex = h;
@@ -480,13 +511,16 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     visible = en.isIntersecting;
     if (visible) kick();
   });
-  const ro = new ResizeObserver(() => { resize(); kick(); });
+  const ro = new ResizeObserver(() => { resize(); readScroll(); kick(); });
   const onVis = () => { if (!document.hidden) kick(); };
+  const onScroll = () => { readScroll(); kick(); };
   const onDim = () => kick();
 
   resize();
+  readScroll();
+  descendNow = descend; // a reload mid-page starts where the page is, not at the top
   io.observe(host);
-  ro.observe(host);
+  ro.observe(canvas);
   host.addEventListener("pointermove", onMove, { passive: true });
   host.addEventListener("pointerdown", onMove, { passive: true });
   host.addEventListener("pointerleave", onLeave);
@@ -495,6 +529,7 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
   host.addEventListener("touchend", onTouchEnd, true);
   document.addEventListener("visibilitychange", onVis);
   window.addEventListener("swing-shift:dimension", onDim);
+  window.addEventListener("scroll", onScroll, { passive: true });
   // read-only diagnostics for QA (frame timings, size, anchor positions)
   (window as unknown as { __heroWeb?: unknown }).__heroWeb = { stats, get segments() { return data?.count ?? 0; }, get dpr() { return dpr; }, anchors: () => (data ? data.anchors.map((_, i) => anchorScreen(i)) : []) };
   kick();
@@ -512,6 +547,7 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
       host.removeEventListener("touchend", onTouchEnd, true);
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("swing-shift:dimension", onDim);
+      window.removeEventListener("scroll", onScroll);
       host.style.cursor = "";
       quad.dispose();
       pointGeo.dispose();

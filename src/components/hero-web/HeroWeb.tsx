@@ -40,5 +40,6 @@ export function HeroWeb({ host }: { host: React.RefObject<HTMLElement | null> })
       handle?.dispose();
     };
   }, [host]);
-  return <canvas ref={canvas} aria-hidden="true" className="hero-web pointer-events-none absolute inset-0 z-[1] h-full w-full" />;
+  // one screen tall and sticky: it stays behind whatever part of the hero or the work is on screen
+  return <canvas ref={canvas} aria-hidden="true" className="hero-web pointer-events-none sticky top-0 block h-[100svh] w-full" />;
 }
