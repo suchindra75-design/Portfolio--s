@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Reveal } from "./Reveal";
 import { site } from "@/content/site";
 import { Clock } from "./Clock";
+import { isVerse } from "./Dimension";
+import { sfx } from "./Sfx";
 
 const NAME = "SUCHINDRA";
 const FROM = "SPIDERMAN"; // same length: the persona resolves, letter by letter, into the person
@@ -65,8 +67,11 @@ function useCellWidths(measure: React.RefObject<HTMLSpanElement | null>) {
 type Web = { id: number; x: number; y: number; ax: number; ay: number };
 
 /**
- * Reel #10: click the dark to fire a web. The line hangs from just under the header (never across
- * the links); Delete or Backspace clears them. Clicks on the figure itself are left to the reveal.
+ * Reel #10, done properly: click the dark to fire a web, and it sticks to something real. The
+ * strand runs from where you clicked to the nearest edge of a real element (a letter of the name,
+ * the role line, the statement, the nav), flies out slack and settles with a damped wobble. In the
+ * Verse it lands with a THWIP. Delete or Backspace clears them. Clicks on the figure are left to
+ * the reveal.
  */
 function useWebs(section: React.RefObject<HTMLElement | null>, portrait: React.RefObject<HTMLDivElement | null>) {
   const [webs, setWebs] = useState<Web[]>([]);
@@ -80,15 +85,34 @@ function useWebs(section: React.RefObject<HTMLElement | null>, portrait: React.R
       const head = ((fx - 0.5) / 0.26) ** 2 + ((fy - 0.38) / 0.3) ** 2 <= 1;
       return head || fy > 0.55;
     };
+    /** The nearest point on a real element's outline, at least 50 px away. */
+    const anchorFor = (cx: number, cy: number) => {
+      let best: { x: number; y: number; d: number } | null = null;
+      document.querySelectorAll<HTMLElement>("[data-anchor]").forEach((n) => {
+        const r = n.getBoundingClientRect();
+        if (!r.width || r.bottom < 0 || r.top > innerHeight) return;
+        const inside = cx > r.left && cx < r.right && cy > r.top && cy < r.bottom;
+        const x = Math.min(r.right, Math.max(r.left, cx));
+        let y = Math.min(r.bottom, Math.max(r.top, cy));
+        if (inside) y = r.top; // from inside a letter, catch its roof
+        const d = Math.hypot(x - cx, y - cy);
+        if (d < 50) return;
+        if (!best || d < best.d) best = { x, y, d };
+      });
+      return best as { x: number; y: number; d: number } | null;
+    };
     const onClick = (e: MouseEvent) => {
       if ((e.target as HTMLElement).closest("a,button") || onFigure(e.clientX, e.clientY)) return;
       const r = el.getBoundingClientRect();
       const x = e.clientX - r.left, y = e.clientY - r.top;
       const nav = document.querySelector("[data-site-nav]");
-      const ay = (nav ? nav.getBoundingClientRect().bottom : 64) - r.top + 6;
-      if (y < ay + 24) return;
-      const ax = Math.min(r.width - 8, Math.max(8, x + (x < r.width / 2 ? -1 : 1) * Math.min(160, r.width * 0.12)));
+      const top = (nav ? nav.getBoundingClientRect().bottom : 64) - r.top + 6;
+      if (y < top + 24) return;
+      const a = anchorFor(e.clientX, e.clientY);
+      const ax = a ? a.x - r.left : Math.min(r.width - 8, Math.max(8, x + (x < r.width / 2 ? -1 : 1) * Math.min(160, r.width * 0.12)));
+      const ay = a ? a.y - r.top : top;
       setWebs((w) => [...w.slice(-7), { id: ++id, x, y, ax, ay }]);
+      if (isVerse()) sfx("THWIP!", e.clientX + 14, e.clientY - 46);
     };
     const onKey = (e: KeyboardEvent) => {
       if ((e.key === "Delete" || e.key === "Backspace") && !(e.target as HTMLElement).closest("input,textarea,[contenteditable]")) setWebs([]);
@@ -104,6 +128,30 @@ function useWebs(section: React.RefObject<HTMLElement | null>, portrait: React.R
 }
 
 function WebMark({ w }: { w: Web }) {
+  const path = useRef<SVGPathElement>(null);
+  const len = Math.hypot(w.x - w.ax, w.y - w.ay);
+  const at = (sag: number) => {
+    const mx = (w.ax + w.x) / 2, my = (w.ay + w.y) / 2;
+    return `M${w.ax.toFixed(1)} ${w.ay.toFixed(1)} Q${mx.toFixed(1)} ${(my + sag).toFixed(1)} ${w.x.toFixed(1)} ${w.y.toFixed(1)}`;
+  };
+  // flies out slack, then pulls taut with a damped wobble; then stops for good
+  useEffect(() => {
+    const p = path.current!;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const rest = len * 0.1, slack = len * 0.34;
+    let raf = 0;
+    const t0 = performance.now();
+    const step = (t: number) => {
+      const s = (t - t0) / 1000;
+      const sag = rest + (slack - rest) * Math.exp(-s * 5) * Math.cos(s * 17);
+      p.setAttribute("d", at(sag));
+      if (s < 1.1) raf = requestAnimationFrame(step);
+      else p.setAttribute("d", at(rest));
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one web, one settle
+  }, []);
   const spokes = 8;
   const rings = [14, 28, 44, 60];
   const pt = (k: number, rad: number) => {
@@ -112,10 +160,10 @@ function WebMark({ w }: { w: Web }) {
     return [w.x + Math.cos(a) * rad * wob, w.y + Math.sin(a) * rad * wob];
   };
   return (
-    <g>
-      <path className="web-strand" pathLength={1} d={`M${w.ax} ${w.ay} Q${(w.ax + w.x) / 2} ${w.ay + (w.y - w.ay) * 0.62} ${w.x} ${w.y}`} stroke="#e9e6e2" strokeOpacity="0.8" strokeWidth="1" fill="none" />
-      <circle cx={w.ax} cy={w.ay} r="1.6" fill="#e9e6e2" fillOpacity="0.8" />
-      <g className="web-net" style={{ transformOrigin: `${w.x}px ${w.y}px` }} stroke="#e9e6e2" strokeOpacity="0.75" strokeWidth="0.9" fill="none">
+    <g className="web">
+      <path ref={path} className="web-strand" pathLength={1} d={at(len * 0.1)} fill="none" />
+      <circle className="web-anchor" cx={w.ax} cy={w.ay} r="2" />
+      <g className="web-net" style={{ transformOrigin: `${w.x}px ${w.y}px` }} fill="none">
         {Array.from({ length: spokes }, (_, k) => {
           const [ex, ey] = pt(k, 68);
           return <line key={k} x1={w.x} y1={w.y} x2={ex} y2={ey} />;
@@ -129,6 +177,58 @@ function WebMark({ w }: { w: Web }) {
 }
 
 /**
+ * Spider-sense: a fast cursor heading for the masked head makes tingle lines flicker round it,
+ * before the reveal. A short cooldown keeps it a surprise, not a strobe.
+ */
+function useSpiderSense(section: React.RefObject<HTMLElement | null>, portrait: React.RefObject<HTMLDivElement | null>, sense: React.RefObject<SVGSVGElement | null>) {
+  useEffect(() => {
+    if (matchMedia("(pointer: coarse)").matches) return;
+    const el = section.current!;
+    let lx = 0, ly = 0, lt = 0, cool = 0, off = 0;
+    const onMove = (e: PointerEvent) => {
+      const t = performance.now();
+      const dt = t - lt;
+      const vx = (e.clientX - lx) / Math.max(1, dt), vy = (e.clientY - ly) / Math.max(1, dt);
+      lx = e.clientX; ly = e.clientY; lt = t;
+      if (dt > 80 || t < cool) return;
+      const b = portrait.current!.getBoundingClientRect();
+      const hx = b.left + b.width * 0.5, hy = b.top + b.height * 0.36;
+      const dx = hx - e.clientX, dy = hy - e.clientY, dist = Math.hypot(dx, dy);
+      const speed = Math.hypot(vx, vy);
+      if (dist < b.width * 0.22 || dist > b.width * 0.75 || speed < 1.5) return;
+      if ((vx * dx + vy * dy) / (speed * dist) < 0.8) return; // not heading for the head
+      cool = t + 2600;
+      const s = sense.current!;
+      s.dataset.on = "true";
+      window.clearTimeout(off);
+      off = window.setTimeout(() => delete s.dataset.on, 720);
+    };
+    el.addEventListener("pointermove", onMove);
+    return () => {
+      el.removeEventListener("pointermove", onMove);
+      window.clearTimeout(off);
+    };
+  }, [section, portrait, sense]);
+}
+
+/** Tingle marks: three pairs of short zig-zags either side of the head (portrait coordinates). */
+const TINGLES = [-38, -8, 22].flatMap((deg) =>
+  [1, -1].map((side) => {
+    const a = (deg * Math.PI) / 180;
+    const cx = 385.5, cy = 330, r0 = 196, r1 = 262;
+    const pts: string[] = [];
+    for (let k = 0; k <= 6; k++) {
+      const r = r0 + ((r1 - r0) * k) / 6;
+      const n = (k % 2 ? 1 : -1) * 7;
+      const x = cx + side * (Math.cos(a) * r - Math.sin(a) * n);
+      const y = cy + Math.sin(a) * r + Math.cos(a) * n;
+      pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    }
+    return pts.join(" ");
+  }),
+);
+
+/**
  * SWING SHIFT hero. Black studio. The owner's two images stacked as one portrait (mask on top,
  * his own face revealed under the cursor), a thin red reticle round him that passes behind his
  * shoulders (Spider Noir reference), the persona resolving into his name in front of the suit
@@ -140,18 +240,30 @@ export function Hero() {
   const measure = useRef<HTMLSpanElement>(null);
   const chars = useScramble();
   const cells = useCellWidths(measure);
+  const sense = useRef<SVGSVGElement>(null);
   const webs = useWebs(section, portrait);
+  useSpiderSense(section, portrait, sense);
   const [touch, setTouch] = useState(false);
+  const [found, setFound] = useState(false);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the pointer type is only known in the browser
     setTouch(matchMedia("(pointer: coarse)").matches);
+    const el = section.current!;
+    const onFound = () => setFound(true);
+    el.addEventListener("reveal-found", onFound);
+    // warm the Verse portrait once the page is idle, so the first jump has it ready
+    const warm = window.setTimeout(() => ["/portrait/verse/base.jpg", "/portrait/verse/face.jpg"].forEach((src) => (new Image().src = src)), 4500);
+    return () => {
+      el.removeEventListener("reveal-found", onFound);
+      window.clearTimeout(warm);
+    };
   }, []);
 
   return (
     <section ref={section} id="top" aria-labelledby="name" className="relative h-[100svh] min-h-[620px] overflow-hidden bg-void">
       {/* The portrait: the two supplied images, registered, bottom-centred */}
       <div ref={portrait} className="portrait-in absolute bottom-0 left-1/2 z-[2] aspect-[771/1018] h-[84svh] -translate-x-1/2 md:h-[96svh]">
-        <Reveal className="absolute inset-0" />
+        <Reveal className="portrait-frame absolute inset-0" />
         {/* Reticle: a thin ring that passes behind his shoulders (masked where it meets the body) */}
         <svg aria-hidden="true" viewBox="0 0 771 1018" className="reticle pointer-events-none absolute inset-0 h-full w-full">
           <defs>
@@ -172,6 +284,16 @@ export function Hero() {
             </g>
           </g>
         </svg>
+        {/* Spider-sense: flickers round the head when a fast cursor heads for it */}
+        <svg ref={sense} aria-hidden="true" viewBox="0 0 771 1018" className="spider-sense pointer-events-none absolute inset-0 h-full w-full">
+          {TINGLES.map((pts, k) => (
+            <polyline key={k} points={pts} style={{ animationDelay: `${(k % 3) * 40}ms` }} />
+          ))}
+        </svg>
+        {/* The Verse: once you find him, the comic says so */}
+        <p aria-hidden={!found} className={`found-caption caption-box absolute left-[64%] top-[12%] max-w-[13rem] ${found ? "is-on" : ""}`}>
+          Yeah. It’s me. The guy who builds things after hours.
+        </p>
       </div>
 
       {/* Opening static, full-bleed, settling into the portrait (reel #1) */}
@@ -187,7 +309,21 @@ export function Hero() {
       {/* Role + name, as one unit, in front of the suit */}
       <div className="pointer-events-none absolute inset-x-0 bottom-[13svh] z-[4] flex justify-center md:bottom-[3svh]">
         <div className="relative">
-          <p className="rise absolute bottom-full left-[0.4vw] mb-[0.2em] font-serif text-[clamp(20px,2.1vw,32px)] italic leading-none text-text [text-shadow:0_1px_10px_rgba(0,0,0,0.95)]" style={{ animationDelay: "2.1s" }}>
+          {/* The Verse: a spray-painted tag under the name (Miles's touch) */}
+          <svg aria-hidden="true" viewBox="0 0 1000 260" preserveAspectRatio="none" className="spray-tag verse-only absolute -left-[3%] bottom-[10%] h-[52%] w-[106%]">
+            <defs>
+              <filter id="spray" x="-10%" y="-30%" width="120%" height="160%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" result="n" />
+                <feDisplacementMap in="SourceGraphic" in2="n" scale="16" />
+              </filter>
+            </defs>
+            <g filter="url(#spray)" fill="none" strokeLinecap="round">
+              <path d="M40 190 C 210 120, 380 230, 560 160 S 860 120, 965 170" stroke="#e3262b" strokeWidth="58" strokeOpacity="0.92" />
+              <path d="M150 218 C 320 196, 520 226, 840 200" stroke="#ff2e88" strokeWidth="9" strokeOpacity="0.85" />
+              <path d="M300 205 l 0 30 M 640 190 l 0 38 M 820 176 l 0 24" stroke="#e3262b" strokeWidth="7" />
+            </g>
+          </svg>
+          <p data-anchor className="rise verse-caption absolute bottom-full left-[0.4vw] mb-[0.2em] font-serif text-[clamp(20px,2.1vw,32px)] italic leading-none text-text [text-shadow:0_1px_10px_rgba(0,0,0,0.95)]" style={{ animationDelay: "2.1s" }}>
             Full-stack developer<span className="text-text md:text-red-text">.</span>
           </p>
           <h1 id="name" aria-label={site.name} className="text-[min(16.6vw,22svh)] md:text-[min(16.2vw,30svh)]">
@@ -196,7 +332,7 @@ export function Hero() {
                 const cw = cells?.cells[i];
                 const sx = cw && cells.glyph[c] ? Math.min(1, cw / cells.glyph[c]) : 1;
                 return (
-                  <span key={i} className="inline-block text-center" style={cw ? { width: `${cw.toFixed(4)}em` } : undefined}>
+                  <span key={i} data-anchor className="inline-block text-center" style={cw ? { width: `${cw.toFixed(4)}em` } : undefined}>
                     <span className="wordmark inline-block pb-[0.06em]" style={sx < 1 ? { transform: `scaleX(${sx.toFixed(3)})` } : undefined}>
                       {c}
                     </span>
@@ -218,7 +354,7 @@ export function Hero() {
 
       {/* Left: the statement */}
       <div className="rise absolute bottom-8 left-10 z-[5] hidden max-w-[22rem] md:block" style={{ animationDelay: "1.6s" }}>
-        <p className="text-[17px] leading-[1.4] text-text">{site.line[1]}</p>
+        <p data-anchor className="verse-caption text-[17px] leading-[1.4] text-text">{site.line[1]}</p>
         <p className="label mt-5 text-dim">
           {site.location} · {site.company}
         </p>
@@ -226,7 +362,8 @@ export function Hero() {
 
       {/* Right edge: the edition, set vertically */}
       <p aria-hidden="true" className="label absolute right-10 top-1/2 z-[5] hidden -translate-y-1/2 rotate-180 text-dim [writing-mode:vertical-rl] md:block">
-        Swing Shift <span className="text-red-text">/</span> the night edition
+        <span className="prime-only">Swing Shift <span className="text-red-text">/</span> the night edition</span>
+        <span className="verse-only">The Verse <span className="text-red-text">/</span> comic edition</span>
       </p>
 
       {/* Phones: a way forward and the local time, under the name */}
@@ -245,7 +382,7 @@ export function Hero() {
           <span aria-hidden="true" className="pulse size-1.5 rounded-full bg-red" />
           {touch ? "Tap the mask" : "Move over the mask"}
         </p>
-        <p className="label mt-2 hidden text-dim md:block">Click the dark to fire a web · Del clears</p>
+        <p className="label mt-2 hidden text-dim md:block">Click the dark to fire a web · Del clears · V jumps dimension</p>
       </div>
     </section>
   );

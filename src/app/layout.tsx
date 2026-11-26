@@ -1,12 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Inter_Tight, Instrument_Serif, JetBrains_Mono } from "next/font/google";
+import { Bangers, Inter_Tight, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import { site } from "@/content/site";
 import { Nav } from "@/components/Nav";
 import { SiteFooter } from "@/components/Sections";
+import { DimensionRoot, dimensionBootScript } from "@/components/Dimension";
+import { DropLine } from "@/components/DropLine";
 import "./globals.css";
 
 const inter = Inter_Tight({ variable: "--ff-inter", subsets: ["latin"], weight: ["400", "500", "600", "800", "900"], display: "swap" });
 const serif = Instrument_Serif({ variable: "--ff-serif", subsets: ["latin"], weight: "400", style: ["normal", "italic"], display: "swap" });
+// The Verse only: hand-lettered SFX and caption boxes
+const comic = Bangers({ variable: "--ff-comic", subsets: ["latin"], weight: "400", display: "swap" });
 const mono = JetBrains_Mono({ variable: "--ff-mono", subsets: ["latin"], weight: ["400", "500"], display: "swap" });
 
 export const metadata: Metadata = {
@@ -19,12 +23,17 @@ export const viewport: Viewport = { themeColor: "#000000", colorScheme: "dark" }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${serif.variable} ${mono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${serif.variable} ${mono.variable} ${comic.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: dimensionBootScript }} />
+      </head>
       <body>
         <a href="#main" className="label sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:bg-black focus:px-4 focus:py-3 focus:text-text">Skip to content</a>
         <Nav />
         {children}
         <SiteFooter />
+        <DropLine />
+        <DimensionRoot />
       </body>
     </html>
   );

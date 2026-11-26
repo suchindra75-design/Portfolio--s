@@ -4,6 +4,7 @@ import { alsoBuilt } from "@/content/projects";
 import { site } from "@/content/site";
 import { Chip, Legend } from "./Evidence";
 import { Clock } from "./Clock";
+import { NightShift } from "./NightShift";
 
 /** Screen-reader text for links that open a new tab; the arrow itself stays silent. */
 export function External() {
@@ -18,7 +19,7 @@ export function External() {
 export function AlsoBuilt() {
   return (
     <section aria-labelledby="also-title" className="border-t hairline bg-void px-5 py-24 md:px-10 md:py-32">
-      <p className="label text-dim">Side work</p>
+      <p className="label verse-caption text-dim">Side work</p>
       <h2 id="also-title" className="display mt-4 text-[clamp(40px,5vw,72px)] text-text">
         Also built<span className="text-red-text">.</span>
       </h2>
@@ -131,15 +132,19 @@ export function Contact() {
 /** Every page closes on the edition line, the portrait credit and the rights notice. */
 export function SiteFooter() {
   return (
-    <footer className="border-t hairline bg-void px-5 py-10 md:px-10">
+    <footer className="site-footer border-t hairline bg-void">
+      <NightShift />
+      <div className="border-t hairline px-5 py-10 md:px-10">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <p className="label text-dim">
           Swing Shift <span className="text-red-text">/</span> the night edition · © 2026 {site.name}
         </p>
         <div className="max-w-[40rem] space-y-2 text-[13px] leading-[1.6] text-dim">
           <p>Hero portrait: a digital composite of Suchindra in the suit, supplied by him. The mask layer and the face layer are his two image files, unedited.</p>
-          <p>The Spider-Man suit and emblem belong to Marvel / Sony. A non-commercial fan edition, not affiliated with or endorsed by them.</p>
+          <p>The Verse (press V): the same two images run through a halftone filter (tools/verse-portrait). Nothing is generated or redrawn.</p>
+          <p>The Spider-Man suit and emblem belong to Marvel / Sony. A non-commercial fan edition, not affiliated with or endorsed by them. The comic lettering and effects are drawn for this site.</p>
         </div>
+      </div>
       </div>
     </footer>
   );

@@ -283,3 +283,316 @@ body {
 @media (min-width: 768px) {
   html { scroll-padding-top: 96px; }
 }
+
+/* ══ TWO EARTHS (docs/interactive/PLAN.md) ══════════════════════════════════════════════════
+   Earth-Prime is everything above, unchanged. The Verse re-inks the same pages as a comic book:
+   halftone grounds, misregistered plates, caption boxes, SFX lettering, motion on twos, and
+   Miles's black-red-and-spray-paint. Every Verse rule hangs off html[data-verse]. */
+:root {
+  --verse-yellow: #ffe600;
+  --verse-cyan: #00e5ff;
+  --verse-magenta: #ff2e88;
+  --verse-paper: #f4efe6;
+  --verse-ink: #0a0a0a;
+}
+.verse-only { display: none !important; }
+html[data-verse] .verse-only { display: revert !important; }
+html[data-verse] .prime-only { display: none !important; }
+
+/* The switch in the bar: three plates that split apart (they stay split in the Verse) */
+.dimension-plates .plate {
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid currentColor;
+  transition: transform 0.24s steps(3), opacity 0.24s steps(2);
+}
+.dimension-plates .plate--c { border-color: var(--verse-cyan); opacity: 0; }
+.dimension-plates .plate--m { border-color: var(--verse-magenta); opacity: 0; }
+.dimension-switch:hover .plate--c,
+html[data-verse] .plate--c { opacity: 1; transform: translate(-3px, -2px); }
+.dimension-switch:hover .plate--m,
+html[data-verse] .plate--m { opacity: 1; transform: translate(3px, 2px); }
+html[data-verse] .plate--k { background: var(--color-red); border-color: var(--verse-ink); }
+
+/* The jump: torn bands and one halftone frame over the page, the page itself stuttering on twos */
+.glitch-veil { display: none; }
+html[data-glitch] .glitch-veil,
+html[data-flicker] .glitch-veil { display: block; }
+.glitch-band {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  mix-blend-mode: difference;
+  animation: band-a 0.64s steps(1) both;
+}
+.glitch-band--1 { top: 9%; height: 8%; background: var(--verse-cyan); }
+.glitch-band--2 { top: 37%; height: 3%; background: var(--verse-magenta); animation-name: band-b; }
+.glitch-band--3 { top: 58%; height: 12%; background: var(--verse-yellow); animation-name: band-b; animation-direction: reverse; }
+.glitch-band--4 { top: 83%; height: 4%; background: #fff; }
+.glitch-veil::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, var(--verse-yellow) 1.5px, transparent 1.9px) 0 0 / 8px 8px;
+  mix-blend-mode: difference;
+  opacity: 0;
+  animation: veil-dots 0.64s steps(1) both;
+}
+html[data-flicker] .glitch-band,
+html[data-flicker] .glitch-veil::before { animation-duration: 0.17s; }
+@keyframes band-a {
+  0% { transform: translate(-30%, 0); }
+  14% { transform: translate(18%, 7vh); }
+  28% { transform: translate(-12%, -13vh); }
+  42% { transform: translate(34%, 19vh); }
+  56% { transform: translate(-22%, 3vh); }
+  70% { transform: translate(6%, -5vh); opacity: 0.7; }
+  84%, 100% { opacity: 0; }
+}
+@keyframes band-b {
+  0% { transform: translate(24%, 0) scaleY(2); }
+  16% { transform: translate(-30%, -9vh); }
+  32% { transform: translate(8%, 15vh) scaleY(0.5); }
+  48% { transform: translate(-16%, -21vh); }
+  64% { transform: translate(28%, 6vh); opacity: 0.6; }
+  80%, 100% { opacity: 0; }
+}
+@keyframes veil-dots {
+  0%, 38% { opacity: 0; }
+  40% { opacity: 0.9; }
+  52%, 100% { opacity: 0; }
+}
+html[data-glitch] main,
+html[data-glitch] [data-site-nav],
+html[data-glitch] .site-footer {
+  animation: glitch-jitter 0.64s steps(1) both;
+}
+@keyframes glitch-jitter {
+  0% { transform: none; }
+  10% { transform: translate(-18px, 0) skewX(-4deg); }
+  22% { transform: translate(12px, 3px); }
+  34% { transform: translate(-6px, -2px) skewX(3deg); }
+  46% { transform: translate(22px, 0); }
+  58% { transform: translate(-10px, 2px); }
+  72% { transform: translate(4px, 0); }
+  86% { transform: translate(-2px, 0); }
+  100% { transform: none; }
+}
+
+/* Caption boxes (the hint, the found line, and Verse labels) */
+.caption-box {
+  font-family: var(--ff-comic), Impact, sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  color: var(--verse-ink);
+  background: var(--verse-yellow);
+  border: 2px solid var(--verse-ink);
+  box-shadow: 4px 4px 0 var(--verse-ink);
+  padding: 0.55em 0.8em;
+  opacity: 0;
+  visibility: hidden;
+  transform: rotate(-1.4deg) scale(0.6);
+  transition: opacity 0.2s steps(2), transform 0.25s steps(3), visibility 0s linear 0.25s;
+}
+.caption-box.is-on {
+  opacity: 1;
+  visibility: visible;
+  transform: rotate(-1.4deg) scale(1);
+  transition-delay: 0s;
+}
+.caption-box kbd {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  border: 1.5px solid var(--verse-ink);
+  background: #fff;
+  padding: 0 0.3em;
+}
+html:not([data-verse]) .found-caption { display: none; }
+.found-caption { z-index: 6; pointer-events: none; }
+
+/* SFX lettering */
+.sfx {
+  position: fixed;
+  z-index: 90;
+  pointer-events: none;
+  font-family: var(--ff-comic), Impact, sans-serif;
+  font-size: 46px;
+  line-height: 1;
+  color: var(--verse-yellow);
+  -webkit-text-stroke: 2px var(--verse-ink);
+  paint-order: stroke fill;
+  text-shadow: 3px 3px 0 var(--color-red), 5px 5px 0 var(--verse-ink);
+  transform: translate(-50%, -50%) rotate(var(--tilt));
+  animation: sfx-pop 0.9s steps(11) forwards;
+}
+@keyframes sfx-pop {
+  0% { transform: translate(-50%, -50%) rotate(var(--tilt)) scale(0.3); }
+  18% { transform: translate(-50%, -50%) rotate(var(--tilt)) scale(1.2); }
+  30% { transform: translate(-50%, -50%) rotate(var(--tilt)) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -70%) rotate(var(--tilt)) scale(1.05); }
+}
+
+/* Spider-sense tingle */
+.spider-sense polyline {
+  fill: none;
+  stroke: var(--color-silver);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0;
+}
+.spider-sense[data-on] polyline { animation: tingle 0.72s steps(1) both; }
+@keyframes tingle {
+  0% { opacity: 0; }
+  8% { opacity: 1; transform: translate(0, 0); }
+  24% { opacity: 0; }
+  36% { opacity: 1; transform: translate(0, -3px); }
+  60% { opacity: 1; transform: translate(0, 0); }
+  76% { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+html[data-verse] .spider-sense polyline { stroke: #fff; stroke-width: 4; filter: drop-shadow(2px 2px 0 var(--verse-ink)); }
+
+/* Webs */
+.web-strand { stroke: #e9e6e2; stroke-opacity: 0.8; stroke-width: 1; }
+.web-anchor { fill: #e9e6e2; fill-opacity: 0.8; }
+.web-net { stroke: #e9e6e2; stroke-opacity: 0.75; stroke-width: 0.9; }
+html[data-verse] .web-strand { stroke: #fff; stroke-opacity: 1; stroke-width: 2.6; }
+html[data-verse] .web-net { stroke: #fff; stroke-opacity: 1; stroke-width: 1.8; }
+html[data-verse] .web-anchor { fill: var(--verse-yellow); fill-opacity: 1; stroke: var(--verse-ink); stroke-width: 1.5; }
+
+/* The drop line */
+.drop-line__strand { stroke: rgb(236 231 226 / 0.5); stroke-width: 1; }
+.drop-line__bob line,
+.drop-line__ring { stroke: var(--color-red); stroke-width: 1.3; fill: none; }
+.drop-line__dot { fill: var(--color-red); }
+.drop-line__hit { cursor: pointer; background: transparent; }
+html[data-verse] .drop-line__strand { stroke: #fff; stroke-width: 2.4; }
+html[data-verse] .drop-line__ring { fill: var(--verse-yellow); stroke: var(--verse-ink); stroke-width: 2.4; }
+html[data-verse] .drop-line__bob line { stroke: #fff; stroke-width: 2.4; }
+
+/* Card to page morph */
+::view-transition-group(.morph) {
+  animation-duration: 0.5s;
+  animation-timing-function: cubic-bezier(0.6, 0, 0.2, 1);
+}
+html[data-verse]::view-transition-group(.morph) { animation-timing-function: steps(10, end); }
+
+/* ── The Verse re-ink ──────────────────────────────────────────────────────────────────────── */
+html[data-verse] .bg-void { position: relative; isolation: isolate; background-color: #040404; }
+html[data-verse] .bg-void::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(circle, rgb(227 38 43 / 0.55) 1.4px, transparent 1.8px) 0 0 / 10px 10px;
+  -webkit-mask-image: radial-gradient(90% 70% at 100% 0%, #000, transparent 70%), radial-gradient(70% 60% at 0% 100%, #000, transparent 70%);
+  mask-image: radial-gradient(90% 70% at 100% 0%, #000, transparent 70%), radial-gradient(70% 60% at 0% 100%, #000, transparent 70%);
+}
+html[data-verse] .portrait-frame {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+html[data-verse] .wordmark {
+  background: none;
+  color: #fff;
+  -webkit-text-stroke: 0.016em var(--verse-ink);
+  paint-order: stroke fill;
+  filter: drop-shadow(0.035em 0.035em 0 var(--color-red)) drop-shadow(0.012em 0.012em 0 var(--verse-ink));
+}
+html[data-verse] .display {
+  font-family: var(--ff-comic), Impact, sans-serif;
+  font-style: normal;
+  letter-spacing: 0.01em;
+  line-height: 0.95;
+  text-shadow: -2px 0 rgb(0 229 255 / 0.65), 2px 0 rgb(255 46 136 / 0.65);
+}
+html[data-verse] .display em { font-style: normal; color: var(--verse-yellow); }
+html[data-verse] .title-light {
+  background: none;
+  color: #fff;
+  -webkit-text-stroke: 0;
+  text-shadow: 4px 4px 0 var(--color-red), -2px 0 rgb(0 229 255 / 0.6);
+}
+html[data-verse] .verse-caption {
+  display: inline-block;
+  font-family: var(--ff-comic), Impact, sans-serif;
+  font-style: normal;
+  font-size: 19px;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--verse-ink) !important;
+  background: var(--verse-yellow);
+  border: 2px solid var(--verse-ink);
+  box-shadow: 4px 4px 0 var(--verse-ink);
+  padding: 0.4em 0.7em;
+  transform: rotate(-1deg);
+  text-shadow: none;
+}
+html[data-verse] .verse-caption * { color: inherit; }
+html[data-verse] .verse-caption .text-red-text { color: #c8101a; }
+html[data-verse] .chip {
+  border: 2px solid #fff;
+  background: var(--verse-ink);
+  box-shadow: 3px 3px 0 var(--color-red);
+}
+html[data-verse] .link-underline { background-size: 100% 3px; }
+html[data-verse] .link-underline:hover { color: var(--verse-yellow); }
+
+/* Rooftops become comic panels */
+html[data-verse] .tower {
+  border: 3px solid var(--verse-paper) !important;
+  background: var(--verse-ink) !important;
+  transition: transform 0.2s steps(2), box-shadow 0.2s steps(2);
+}
+/* a concept stays dashed in every dimension */
+html[data-verse] .tower.border-dashed { border-style: dashed !important; }
+html[data-verse] .tower[data-active="true"] {
+  transform: translate(-5px, -5px) rotate(-0.6deg);
+  box-shadow: 9px 9px 0 var(--color-red), 9px 9px 0 3px var(--verse-ink);
+}
+html[data-verse] .tower img { filter: grayscale(1) contrast(1.5) brightness(0.7); }
+html[data-verse] .tower[data-active="true"] img { filter: contrast(1.2) saturate(1.35); }
+html[data-verse] .tower-shot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle, rgb(0 0 0 / 0.22) 1px, transparent 1.4px) 0 0 / 4px 4px;
+  mix-blend-mode: multiply;
+}
+html[data-verse] .strand { stroke: #fff; stroke-opacity: 0.5; stroke-width: 2; }
+html[data-verse] .strand[stroke="var(--color-red)"] { stroke: var(--verse-yellow); stroke-opacity: 1; stroke-width: 3; }
+
+/* Screens become panels */
+html[data-verse] .lit-window {
+  border: 3px solid var(--verse-paper);
+  box-shadow: 12px 12px 0 var(--color-red), 12px 12px 0 3px var(--verse-ink);
+}
+html[data-verse] .lit-window img { filter: contrast(1.15) saturate(1.25); }
+html[data-verse] .lit-window::after {
+  background: radial-gradient(circle, rgb(0 0 0 / 0.3) 1.1px, transparent 1.5px) 0 0 / 5px 5px;
+}
+
+/* "The hard part" gets the red panel */
+html[data-verse] .eight-cell[data-red] { background: var(--color-red); padding-left: 1.25rem; padding-right: 1.25rem; }
+html[data-verse] .eight-cell[data-red] dt,
+html[data-verse] .eight-cell[data-red] dd { color: #fff; }
+
+/* Motion on twos */
+html[data-verse] .rise { animation-timing-function: steps(6, end); }
+html[data-verse] .portrait-in { animation-timing-function: steps(10, end); }
+html[data-verse] .reticle circle { stroke: #fff; stroke-width: 2.5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .glitch-veil { display: none !important; }
+  .sfx { animation: none; opacity: 0; }
+  .spider-sense[data-on] polyline { animation: none; }
+  .caption-box { transition: none; }
+  ::view-transition-group(.morph) { animation-duration: 0s; }
+}

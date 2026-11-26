@@ -12,3 +12,5 @@ next-env.d.ts
 /art/
 /docs/
 tools/reveal-region/region-view.jpg
+
+/.next-verse/

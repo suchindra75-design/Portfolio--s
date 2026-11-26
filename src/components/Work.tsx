@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, ViewTransition } from "react";
 import { projects } from "@/content/projects";
 import { Chip } from "./Evidence";
 
@@ -40,7 +40,7 @@ export function Work() {
       <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(55% 45% at 62% 40%, rgba(122,21,18,0.28), transparent 70%)" }} />
 
       <div className="relative">
-        <p className="label text-dim">The work · five builds · one concept · one web</p>
+        <p className="label verse-caption text-dim">The work · five builds · one concept · one web</p>
         <h2 id="work-title" className="display mt-5 text-[clamp(52px,7.2vw,112px)] text-text">
           Every line <em>connects.</em>
         </h2>
@@ -100,9 +100,14 @@ export function Work() {
                     onFocus={() => setI(k)}
                     className={`tower flex h-full flex-col border bg-[#070707] p-3 max-lg:focus-visible:outline-offset-[-4px] lg:mt-[var(--top)] lg:h-[calc(640px-var(--top))] lg:overflow-hidden lg:bg-[repeating-linear-gradient(0deg,transparent_0_26px,rgba(255,255,255,0.022)_26px_27px)] lg:[mask-image:linear-gradient(to_bottom,#000_80%,transparent)] ${concept ? "border-dashed border-white/25" : "border-white/10"}`}
                   >
-                    <div className={`relative aspect-[4/5] w-full flex-none overflow-hidden ${concept ? "border border-dashed border-white/20" : "bg-black"}`}>
+                    <div className={`tower-shot relative aspect-[4/5] w-full flex-none overflow-hidden ${concept ? "border border-dashed border-white/20" : "bg-black"}`}>
                       {q.screen ? (
-                        <Image src={q.screen.src} alt="" fill sizes="(min-width:1024px) 14vw, 70vw" className="object-cover" style={{ objectPosition: THUMB[q.slug] ?? "left top" }} />
+                        // Card to page: this thumbnail morphs into the project page's lit window
+                        <ViewTransition name={`shot-${q.slug}`} share="morph" default="none">
+                          <div className="absolute inset-0">
+                            <Image src={q.screen.src} alt="" fill sizes="(min-width:1024px) 14vw, 70vw" className="object-cover" style={{ objectPosition: THUMB[q.slug] ?? "left top" }} />
+                          </div>
+                        </ViewTransition>
                       ) : (
                         <span className="label absolute inset-0 grid place-items-center px-3 text-center leading-[1.7] text-dim">No firmware available</span>
                       )}

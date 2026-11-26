@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ViewTransition } from "react";
 import { nextProject, projectBySlug, projects } from "@/content/projects";
 import { Chip, Legend } from "@/components/Evidence";
 import { External } from "@/components/Sections";
@@ -43,7 +44,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
       {/* Opening */}
       <header className="relative grid gap-12 px-5 pb-16 pt-28 md:px-10 md:pt-36 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14">
         <div>
-          <p className="label leading-[1.8] text-dim">
+          <p className="label verse-caption leading-[1.8] text-dim">
             <span className="text-red-text">{p.index}</span> · {p.category} · {p.status}
           </p>
           <h1 className={`display title-light mt-4 ${titleSize(p.title)}`}>{p.title}</h1>
@@ -73,9 +74,11 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
 
         <figure className="self-start lg:mt-10">
           {p.screen ? (
-            <div className="lit-window aspect-[16/10] overflow-hidden">
-              <Image src={p.screen.src} alt={p.screen.alt} fill preload sizes="(min-width:1024px) 52vw, 100vw" className="object-cover object-left-top" />
-            </div>
+            <ViewTransition name={`shot-${p.slug}`} share="morph" default="none">
+              <div className="lit-window aspect-[16/10] overflow-hidden">
+                <Image src={p.screen.src} alt={p.screen.alt} fill preload sizes="(min-width:1024px) 52vw, 100vw" className="object-cover object-left-top" />
+              </div>
+            </ViewTransition>
           ) : (
             <div className="grid aspect-[16/10] place-items-center border border-dashed border-white/25 px-8 text-center">
               <p className="label leading-[1.8] text-dim">Concept · no screenshot: the firmware isn’t available</p>
@@ -97,7 +100,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
         </h2>
         <dl className="grid border-t hairline sm:grid-cols-2 lg:grid-cols-5">
           {eight.map((e) => (
-            <div key={e.k} className="relative border-b hairline py-7 pr-6 lg:border-b-0 lg:border-r lg:px-6 lg:first:pl-0 lg:last:border-r-0">
+            <div key={e.k} data-red={e.red || undefined} className="eight-cell relative border-b hairline py-7 pr-6 lg:border-b-0 lg:border-r lg:px-6 lg:first:pl-0 lg:last:border-r-0">
               {e.red && <span aria-hidden="true" className="absolute -top-px left-0 h-0.5 w-14 bg-red lg:left-6" />}
               <dt className="label text-dim">{e.k}</dt>
               <dd className="mt-4 text-[16px] leading-[1.55] text-text">{e.v}</dd>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { site } from "@/content/site";
+import { DimensionSwitch } from "./Dimension";
 
 const ITEMS = [
   { href: "/#work", label: "Work", match: (p: string) => p.startsWith("/work") },
@@ -27,10 +28,11 @@ export function Nav() {
       data-site-nav
       className={`fixed inset-x-0 top-0 z-50 flex items-center justify-between px-5 py-4 transition-colors duration-300 md:px-10 md:py-6 ${scrolled ? "bg-black/80 backdrop-blur-md" : ""}`}
     >
-      <Link href="/" className="label -my-3 flex items-center gap-3 py-3 text-red-text">
+      <Link href="/" data-anchor className="label -my-3 flex items-center gap-3 py-3 text-red-text">
         <span aria-hidden="true" className="hidden h-px w-8 bg-red sm:block" />
         {site.shortName}
       </Link>
+      <div className="flex items-center gap-5 md:gap-9">
       <nav aria-label="Main" className="flex gap-4 md:gap-9">
         {ITEMS.map((it) => {
           const current = it.match(path);
@@ -38,6 +40,7 @@ export function Nav() {
             <Link
               key={it.label}
               href={it.href}
+              data-anchor
               aria-current={current ? (it.href === path ? "page" : "true") : undefined}
               className={`label relative -mx-1.5 -my-3 px-1.5 py-3 transition-colors hover:text-red-text ${current ? "text-text" : "text-silver"}`}
             >
@@ -47,6 +50,9 @@ export function Nav() {
           );
         })}
       </nav>
+      <span aria-hidden="true" className="h-4 w-px bg-white/20" />
+      <DimensionSwitch />
+      </div>
     </header>
   );
 }
