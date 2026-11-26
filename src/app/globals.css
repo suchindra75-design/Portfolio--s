@@ -620,4 +620,77 @@ html[data-verse] .portrait-frame {
 }
 .hero-web[data-ready="true"] {
   opacity: 1;
+
+/* ══ TOOLKIT PASS (26 Nov 2026): smooth scroll, page transitions, the 3D skyline ═══════════════ */
+
+/* Lenis (lenis/dist/lenis.css): the page keeps its native scrollbar; Lenis only eases it */
+html.lenis,
+html.lenis body { height: auto; }
+.lenis:not(.lenis-autoToggle).lenis-stopped { overflow: clip; }
+.lenis [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-smooth iframe { pointer-events: none; }
+
+/* Page to page, with no visible load. Every page sits in one <ViewTransition update="page"> (layout),
+   so each navigation is a view transition. The bar, the drop line and the footer stay put; only the
+   page changes. Earth-Prime: the old page sinks into the dark and the new one surfaces.
+   The Verse: the next panel slides over the last one on a diagonal ink gutter, on twos. */
+[data-site-nav] { view-transition-name: site-nav; }
+.drop-line { view-transition-name: drop-line; }
+::view-transition-group(site-nav),
+::view-transition-group(drop-line),
+::view-transition-group(.page) { animation: none; }
+::view-transition-old(root),
+::view-transition-new(root) { animation: none; }
+
+::view-transition-old(.page) { animation: page-sink 0.42s cubic-bezier(0.6, 0, 0.3, 1) both; }
+::view-transition-new(.page) { animation: page-surface 0.62s cubic-bezier(0.2, 0.7, 0.2, 1) 0.12s both; }
+@keyframes page-sink {
+  to { opacity: 0; transform: scale(0.985) translateY(-1.5vh); filter: brightness(0.35); }
+}
+@keyframes page-surface {
+  from { opacity: 0; transform: scale(1.012) translateY(1.2vh); }
+}
+
+html[data-verse]::view-transition-old(.page) { animation: panel-out 0.48s steps(6, end) both; }
+html[data-verse]::view-transition-new(.page) {
+  animation: panel-in 0.48s steps(6, end) both;
+  /* the ink gutter on the panel's leading edge */
+  filter: drop-shadow(-10px 0 0 var(--verse-ink)) drop-shadow(-6px 0 0 var(--verse-paper));
+}
+@keyframes panel-in {
+  from { clip-path: polygon(112% 0, 140% 0, 128% 100%, 100% 100%); }
+  to { clip-path: polygon(-40% 0, 140% 0, 128% 100%, -52% 100%); }
+}
+@keyframes panel-out {
+  to { transform: translateX(-6vw) rotate(-0.6deg); filter: brightness(0.5) contrast(1.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.page),
+  ::view-transition-new(.page),
+  html[data-verse]::view-transition-old(.page),
+  html[data-verse]::view-transition-new(.page) { animation: none; }
+}
+
+/* The 3D skyline behind the work: fades in once drawn, never covers the words on the left */
+.skyline-stage {
+  opacity: 0;
+  transition: opacity 1.4s ease;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 70%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 70%, transparent 100%);
+}
+.skyline-stage[data-ready] { opacity: 0.9; }
+@media (min-width: 1024px) {
+  .skyline-stage {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 70%, transparent 100%), linear-gradient(to right, transparent 26%, #000 56%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 70%, transparent 100%), linear-gradient(to right, transparent 26%, #000 56%);
+    mask-composite: intersect;
+  }
+}
+html[data-verse] .skyline-stage { transition: opacity 0.5s steps(4); }
+html[data-verse] .skyline-stage[data-ready] { opacity: 1; }
+.skyline-stage canvas { display: block; }
+@media (prefers-reduced-motion: reduce) {
+  .skyline-stage { transition: none; }
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRef, useState, ViewTransition } from "react";
 import { projects } from "@/content/projects";
 import { Chip } from "./Evidence";
+import { SkylineStage } from "./scene/SkylineStage";
 
 /** Tower tops, stepping down to the right like a skyline (px from the top of the skyline). */
 const TOPS = [0, 70, 140, 100, 180, 210];
@@ -37,6 +38,8 @@ export function Work() {
 
   return (
     <section id="work" aria-labelledby="work-title" className="relative overflow-hidden bg-void px-5 pb-24 pt-28 md:px-10 md:pb-32 md:pt-40">
+      {/* The city behind the rooftops: 3D, lazy, drawn only while on screen */}
+      <SkylineStage active={i} />
       <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(55% 45% at 62% 40%, rgba(122,21,18,0.28), transparent 70%)" }} />
 
       <div className="relative">

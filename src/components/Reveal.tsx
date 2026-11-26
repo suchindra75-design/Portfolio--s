@@ -181,6 +181,13 @@ export function Reveal({ className = "" }: { className?: string }) {
       tx = x = a; ty = y = b; tr = r = RADIUS; paint();
     }
 
+    // Earth-Prime's base, fetched quietly after the first paint has settled
+    const warm = window.setTimeout(() => {
+      const img = new window.Image();
+      img.fetchPriority = "low";
+      img.src = BASE;
+    }, 4500);
+
     return () => {
       cancelAnimationFrame(raf);
       window.clearTimeout(holdTimer);
@@ -192,6 +199,7 @@ export function Reveal({ className = "" }: { className?: string }) {
       el.removeEventListener("touchend", onTouchEnd);
       el.removeEventListener("touchcancel", onTouchEnd);
       button.removeEventListener("click", onButton);
+      window.clearTimeout(warm);
       window.removeEventListener("scroll", refresh);
       io.disconnect();
       ro.disconnect();
@@ -201,9 +209,12 @@ export function Reveal({ className = "" }: { className?: string }) {
   return (
     <div ref={box} className={`reveal ${className}`}>
       <div role="img" aria-label={`${site.name} in a Spider-Man suit with the mask on; underneath, his own portrait in a black suit and burgundy tie.`} className="absolute inset-0">
-        <Image src={BASE} alt="" fill unoptimized preload draggable={false} className="prime-only object-fill" />
+        {/* Every load opens in the Verse, so its base is the one to fetch first. Earth-Prime's base
+            (1.1 MB) is lazy: hidden, it isn't fetched at all, and it is warmed once the page is idle
+            (below), so a jump to Prime still finds it ready. */}
+        <Image src={BASE} alt="" fill unoptimized loading="lazy" draggable={false} className="prime-only object-fill" />
         {/* The Verse: the same two files, re-inked offline (tools/verse-portrait), same registration */}
-        <Image src={VERSE_BASE} alt="" fill unoptimized draggable={false} className="verse-only object-fill" />
+        <Image src={VERSE_BASE} alt="" fill unoptimized preload draggable={false} className="verse-only object-fill" />
         <div ref={face} className="reveal__face" aria-hidden="true">
           <Image src={FACE} alt="" fill unoptimized draggable={false} className="object-cover" />
         </div>

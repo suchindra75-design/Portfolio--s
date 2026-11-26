@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { isVerse } from "./Dimension";
 import { sfx } from "./Sfx";
+import { scrollToY } from "@/lib/scroll";
 
 /**
  * THE DROP LINE. One strand hangs from the top-right corner. Its length is how far down the page
@@ -78,7 +79,7 @@ export function DropLine() {
         sfx("THWIP!", r.left - 40, r.top + 24);
       }
       w -= 1.6;
-      scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+      scrollToY(0, { immediate: reduce });
       document.getElementById("main")?.focus({ preventScroll: true });
     };
 

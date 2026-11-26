@@ -1,10 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { ViewTransition } from "react";
 import { Bangers, Inter_Tight, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import { site } from "@/content/site";
 import { Nav } from "@/components/Nav";
 import { SiteFooter } from "@/components/Sections";
 import { DimensionRoot, dimensionBootScript } from "@/components/Dimension";
 import { DropLine } from "@/components/DropLine";
+import { SmoothScroll } from "@/components/SmoothScroll";
+import { ScrollMotion } from "@/components/ScrollMotion";
+import { PageWarm } from "@/components/PageWarm";
 import "./globals.css";
 
 const inter = Inter_Tight({ variable: "--ff-inter", subsets: ["latin"], weight: ["400", "500", "600", "800", "900"], display: "swap" });
@@ -30,10 +34,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <a href="#main" className="label sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:bg-black focus:px-4 focus:py-3 focus:text-text">Skip to content</a>
         <Nav />
-        {children}
+        {/* Every page change is a transition: the page sinks (Prime) or the next panel slides over (Verse) */}
+        <ViewTransition update="page" default="none">
+          {children}
+        </ViewTransition>
         <SiteFooter />
         <DropLine />
         <DimensionRoot />
+        <SmoothScroll />
+        <ScrollMotion />
+        <PageWarm />
       </body>
     </html>
   );
