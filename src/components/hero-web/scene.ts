@@ -150,7 +150,9 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     probe.getExtension("WEBGL_lose_context")?.loseContext();
   }
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, premultipliedAlpha: true, powerPreference: "high-performance", failIfMajorPerformanceCaveat: true });
+    // "default", not "high-performance": on dual-GPU Macs the latter switches to the discrete GPU
+    // and blocks the main thread for about a second, mid-intro. The scene holds 60 fps either way.
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, premultipliedAlpha: true, powerPreference: "default", failIfMajorPerformanceCaveat: true });
   } catch {
     return null; // no WebGL: the hero simply stays as it was
   }
