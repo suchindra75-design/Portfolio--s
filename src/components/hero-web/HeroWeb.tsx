@@ -28,7 +28,14 @@ export function HeroWeb({ scope }: { scope: React.RefObject<HTMLElement | null> 
       import("./scene").then(({ createHeroWeb }) => {
         const host = scope.current?.querySelector<HTMLElement>("#top");
         if (!live || !canvas.current || !host) return;
-        handle = createHeroWeb(canvas.current, host, { reducedMotion, built: seen, verse: isVerse, startAt });
+        // the Arrival (docs/interactive/ARRIVAL.md): the layout's boot script decided whether it plays
+        const arrival = document.documentElement.dataset.arrival === "play";
+        handle = createHeroWeb(canvas.current, host, { reducedMotion, built: seen, verse: isVerse, startAt, arrival });
+        if (!handle && arrival) {
+          // no WebGL: the portrait simply comes up out of the dark, the hero as it always was
+          document.documentElement.dataset.arrival = "off";
+          window.dispatchEvent(new CustomEvent("swing-shift:arrival-state", { detail: "off" }));
+        }
         if (handle) {
           canvas.current.dataset.ready = "true";
           builtThisLoad = true;

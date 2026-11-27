@@ -17,6 +17,7 @@
 import * as THREE from "three";
 import { buildWeb, type V3, type WebData } from "./geometry";
 import { railNode } from "../showcase/thread";
+import { createArrival, type Arrival, type ArrivalHooks } from "./arrival";
 
 const FOV = 32;
 const CAM_Z = 12;
@@ -31,6 +32,7 @@ const threadVert = /* glsl */ `
   uniform vec2 uPointer; uniform float uPointerAmt;
   uniform vec4 uPulse[${MAX_PULSES}]; uniform vec4 uHover; uniform float uVerse;
   uniform float uFade; uniform float uThread;
+  uniform vec4 uBeam[3]; uniform vec3 uBeamW; uniform vec3 uBeamAmt; uniform float uLift; // the Arrival's searchlights
   varying float vT; varying float vProg; varying float vDist; varying float vHalf; varying float vCore;
   varying vec3 vColor; varying float vSoft; varying float vCover;
 
@@ -48,9 +50,11 @@ const threadVert = /* glsl */ `
     vec2 d0 = (n0 - uPointer) * asp, d1 = (n1 - uPointer) * asp;
     float f0 = exp(-dot(d0, d0) / 0.03), f1 = exp(-dot(d1, d1) / 0.03);
     float nearK0 = clamp(14.0 / c0.w, 0.4, 1.6), nearK1 = clamp(14.0 / c1.w, 0.4, 1.6);
-    float isThread = step(1.5, aStyle.w); // the gallery's thread: its ends must stay put
-    n0 += normalize(d0 + 1e-5) / asp * f0 * 0.014 * uPointerAmt * nearK0 * (1.0 - isThread);
-    n1 += normalize(d1 + 1e-5) / asp * f1 * 0.014 * uPointerAmt * nearK1 * (1.0 - isThread);
+    float isStrand = step(2.5, aStyle.w); // flag 3: a web the Arrival's figure shoots
+    float isThread = step(1.5, aStyle.w) - isStrand; // flag 2: the gallery's thread
+    float fixedEnds = step(1.5, aStyle.w); // both must stay put
+    n0 += normalize(d0 + 1e-5) / asp * f0 * 0.014 * uPointerAmt * nearK0 * (1.0 - fixedEnds);
+    n1 += normalize(d1 + 1e-5) / asp * f1 * 0.014 * uPointerAmt * nearK1 * (1.0 - fixedEnds);
 
     vec2 s0 = (n0 * 0.5 + 0.5) * uRes, s1 = (n1 * 0.5 + 0.5) * uRes;
     vec2 dir = s1 - s0; float dl = length(dir); dir = dl > 1e-4 ? dir / dl : vec2(1.0, 0.0);
@@ -99,8 +103,21 @@ const threadVert = /* glsl */ `
 
     // depth: far threads fade toward black
     float depth = clamp(1.0 - (w - 9.0) / 22.0, 0.22, 1.0);
+    // the Arrival: the web is in the dark, and a searchlight crossing a thread lights it
+    vec3 beamCol = vec3(0.0);
+    if (uBeamAmt.x + uBeamAmt.y + uBeamAmt.z > 0.001) {
+      vec2 pn = mix(n0, n1, along) * vec2(uRes.x / uRes.y, 1.0);
+      for (int i = 0; i < 3; i++) {
+        vec2 bd = pn - uBeam[i].xy;
+        float bs = dot(bd, uBeam[i].zw), bq = bd.x * uBeam[i].w - bd.y * uBeam[i].z;
+        float bw = uBeamW[i] * (1.0 + max(bs, 0.0) * 0.55);
+        float b = uBeamAmt[i] * exp(-bq * bq / (bw * bw)) * smoothstep(0.0, 0.2, bs);
+        beamCol += (i == 2 ? crimson : vec3(0.86, 0.88, 0.94)) * b;
+      }
+      beamCol *= 0.3 + spk * 2.2 + wrap(T, Lk) * 0.25;
+    }
     // the web dims as the page scrolls into the work; the thread is plain crimson silk
-    vColor = mix(col * aStyle.y * depth * uFade, crimson * (0.82 + tip * 0.5) * uThread, isThread);
+    vColor = mix(mix((col * uLift + beamCol) * aStyle.y * depth * uFade, crimson * (0.82 + tip * 0.5) * uThread * uLift, isThread), vec3(0.86, 0.87, 0.9) * aStyle.y, isStrand);
   }
 `;
 
@@ -151,7 +168,7 @@ const pointFrag = /* glsl */ `
 
 export type HeroWebHandle = { dispose: () => void };
 
-export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts: { reducedMotion: boolean; built?: boolean; verse: () => boolean; startAt: number }): HeroWebHandle | null {
+export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts: { reducedMotion: boolean; built?: boolean; verse: () => boolean; startAt: number; arrival?: boolean }): HeroWebHandle | null {
   let renderer: THREE.WebGLRenderer;
   const coarse = matchMedia("(pointer: coarse)").matches;
   // ask quietly first: no WebGL2 (or only a slow software one) means no scene, and no console noise
@@ -190,6 +207,10 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     uVerse: { value: 0 },
     uFade: { value: 1 },
     uThread: { value: 1 },
+    uBeam: { value: Array.from({ length: 3 }, () => new THREE.Vector4()) },
+    uBeamW: { value: new THREE.Vector3() },
+    uBeamAmt: { value: new THREE.Vector3() },
+    uLift: { value: 1 },
   };
   const blend = { blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneFactor } as const;
   const threadMat = new THREE.ShaderMaterial({ vertexShader: threadVert, fragmentShader: threadFrag, uniforms, transparent: true, depthTest: false, depthWrite: false, ...blend });
@@ -251,8 +272,11 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     return [camera.position.x + ray.x * k, camera.position.y + ray.y * k, z];
   };
   const resize = () => {
+    const pw = W, ph = H;
     W = Math.max(1, canvas.clientWidth);
     H = Math.max(1, canvas.clientHeight);
+    // the sequence is framed for one screen: a new size ends it
+    if (arrival && (pw !== W || ph !== H)) endArrival(true);
     dpr = Math.min(window.devicePixelRatio || 1, coarse ? 1.75 : 2);
     renderer.setPixelRatio(dpr);
     renderer.setSize(W, H, false);
@@ -339,7 +363,8 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
   // ---- time and state ----
   const t0 = performance.now() / 1000;
   const startDelay = Math.max(0, opts.startAt - performance.now()) / 1000; // let the portrait arrive first
-  const skip = opts.reducedMotion || !!opts.built;
+  // the Arrival plays over a finished web (it stays dark until the searchlights find it)
+  const skip = opts.reducedMotion || !!opts.built || !!opts.arrival;
   let built = skip;
   let buildT = skip ? 99 : 0; // seconds into the construction
   let constructionPulsed = skip;
@@ -418,6 +443,52 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
   };
   const pulsesActive = (t: number) => uniforms.uPulse.value.some((v) => t - v.w < PULSE_LIFE);
 
+  // ---- the Arrival (arrival.ts): the opening sequence, once per visit, in this scene and loop ----
+  let arrival: Arrival | null = null;
+  let arrT = 0, arrSlow = 0, arrFrames = 0, arrHeld = false, arrReady = false;
+  const NO_CAM = new THREE.Vector3();
+  const setArrivalState = (st: "play" | "reveal" | "done") => {
+    if (document.documentElement.dataset.arrival !== st) document.documentElement.dataset.arrival = st;
+    window.dispatchEvent(new CustomEvent("swing-shift:arrival-state", { detail: st }));
+  };
+  const hooks: ArrivalHooks = {
+    nudge: (x, y, amt) => { uniforms.uPointer.value.set(x, y); pointerTarget = amt; },
+    pulse: (p) => firePulse(p, buildT),
+    dom: setArrivalState,
+    unmask: (snap) => window.dispatchEvent(new CustomEvent("swing-shift:unmask", { detail: { snap } })),
+  };
+  const startArrival = () => {
+    const fr = host.querySelector<HTMLElement>(".portrait-frame");
+    if (!data || !fr) return false;
+    const pr = fr.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
+    arrival = createArrival({
+      scene, camera, at, W, H, mobile: W / H < 0.85 || W < 640, camZ: CAM_Z, threadMat,
+      quadPos: quad.getAttribute("position") as THREE.BufferAttribute, quadIndex: quad.getIndex()!,
+      portrait: { x: pr.left - cr.left, y: pr.top - cr.top, w: pr.width, h: pr.height }, hooks,
+    });
+    arrT = 0; arrSlow = 0; arrFrames = 0; arrHeld = false; arrReady = false;
+    (window as unknown as { __arrivalStarted?: boolean }).__arrivalStarted = true;
+    setArrivalState("play");
+    // its four shaders compile in parallel first (KHR_parallel_shader_compile where available), so
+    // the first frame of the sequence never stalls on them; the sequence starts when they are ready
+    const a = arrival;
+    const go = () => { if (arrival !== a) return; arrReady = true; a.setVisible(true); kick(); };
+    a.warm(renderer);
+    renderer.compileAsync(scene, camera).then(go, go);
+    a.setVisible(false);
+    return true;
+  };
+  /** Ends the sequence; skipped = straight to the finished hero (portrait lit, face revealed). */
+  const endArrival = (skipped: boolean) => {
+    if (!arrival) return;
+    arrival.dispose();
+    arrival = null;
+    uniforms.uLift.value = 1;
+    uniforms.uBeamAmt.value.set(0, 0, 0);
+    if (skipped) { setArrivalState("done"); hooks.unmask(true); }
+    kick();
+  };
+
   const frame = (now: number) => {
     raf = 0;
     const tNow = now / 1000;
@@ -439,6 +510,24 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     } else if (!opts.reducedMotion) buildT += dt;
     uniforms.uTime.value = buildT;
 
+    // the Arrival: scrolling away or a device that can't keep up goes straight to the end
+    if (arrival && !arrHeld && arrReady) {
+      arrFrames++;
+      if (arrFrames > 6 && arrFrames < 60 && dt > 0.045) arrSlow++;
+      if (scrollP > 0.12 || arrSlow > 12) endArrival(true);
+    }
+    if (arrival && arrReady) {
+      if (!arrHeld) arrT += dt;
+      const running = arrival.update(arrT, dpr);
+      const ao = arrival.out;
+      for (let i = 0; i < 3; i++) uniforms.uBeam.value[i].copy(ao.beamNdc[i]);
+      uniforms.uBeamW.value.copy(ao.beamW);
+      uniforms.uBeamAmt.value.copy(ao.beamAmt);
+      uniforms.uLift.value = ao.lift;
+      if (!running) endArrival(false);
+    }
+    const ac = arrival ? arrival.out.cam : NO_CAM;
+
     // the first point: brightens beside his head, then settles to a faint star
     const g = skip ? 0.12 : buildT < 0.15 ? 0 : buildT < 0.7 ? (buildT - 0.15) / 0.55 : Math.max(0.12, 1 - (buildT - 0.7) * 0.6);
     pointUniforms.uHubGlow.value = g;
@@ -447,8 +536,8 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     const k = 1 - Math.exp(-dt * 4);
     camNow.x += (camTarget.x - camNow.x) * k;
     camNow.y += (camTarget.y - camNow.y) * k;
-    camera.position.set(camNow.x * 0.55, camNow.y * 0.35, CAM_Z);
-    camera.lookAt(...LOOK);
+    camera.position.set(camNow.x * 0.55 + ac.x, camNow.y * 0.35 + ac.y, CAM_Z + ac.z);
+    camera.lookAt(LOOK[0] + ac.x * 0.5, LOOK[1] + ac.y * 0.5, LOOK[2]);
     camera.updateMatrixWorld();
     uniforms.uCam.value.copy(camera.position);
 
@@ -461,7 +550,7 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     web.updateMatrixWorld();
     uniforms.uFade.value = (1 - 0.66 * e) * (1 - leave);
     uniforms.uThread.value = (0.45 + 0.55 * sm(0, 0.25, scrollP)) * (1 - leave);
-    pointUniforms.uPointFade.value = (1 - sm(0.05, 0.3, scrollP)) * (1 - leave);
+    pointUniforms.uPointFade.value = (1 - sm(0.05, 0.3, scrollP)) * (1 - leave) * uniforms.uLift.value;
     placeThread();
     pointerAmt += (pointerTarget - pointerAmt) * (1 - Math.exp(-dt * 6));
     pointerTarget *= Math.exp(-dt * 1.6); // the web relaxes when the pointer rests
@@ -474,9 +563,11 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
     pointUniforms.uHoverIndex.value = hoverIndex;
     uniforms.uVerse.value = opts.verse() ? 1 : 0;
 
+    if (arrival && arrReady) arrival.prerender(renderer, dpr);
     renderer.render(scene, camera);
 
     const moving =
+      (!!arrival && !arrHeld && arrReady) ||
       !built ||
       pulsesActive(buildT) ||
       Math.abs(camTarget.x - camNow.x) + Math.abs(camTarget.y - camNow.y) > 1e-4 ||
@@ -600,6 +691,14 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
   const ro = new ResizeObserver(() => { resize(); measure(); readScroll(); kick(); });
   const onVis = () => { if (!document.hidden) kick(); };
   const onDim = () => kick();
+  const onArrival = (e: Event) => {
+    const cmd = (e as CustomEvent<string>).detail;
+    if (cmd === "skip") endArrival(true);
+    if (cmd === "replay" && !arrival && !opts.reducedMotion && scrollP < 0.12) {
+      window.dispatchEvent(new CustomEvent("swing-shift:mask"));
+      startArrival();
+    }
+  };
   const onScroll = () => { readScroll(); kick(); };
   const offRail = railNode.on(kick);
 
@@ -620,16 +719,27 @@ export function createHeroWeb(canvas: HTMLCanvasElement, host: HTMLElement, opts
   host.addEventListener("touchend", onTouchEnd, true);
   document.addEventListener("visibilitychange", onVis);
   window.addEventListener("swing-shift:dimension", onDim);
+  window.addEventListener("swing-shift:arrival", onArrival);
   // read-only diagnostics for QA (frame timings, size, anchor positions)
   (window as unknown as { __heroWeb?: unknown }).__heroWeb = { stats, get segments() { return data?.count ?? 0; }, get dpr() { return dpr; }, anchors: () => (data ? data.anchors.map((_, i) => anchorScreen(i)) : []), thread: () => {
     if (!thread.visible) return null;
     const scr = (v: THREE.Vector3) => { const q = v.clone().project(camera); return [Math.round((q.x * 0.5 + 0.5) * W), Math.round((1 - (q.y * 0.5 + 0.5)) * H)]; };
     return { from: scr(tv), to: scr(tw), p: +scrollP.toFixed(3) };
+  }, arrival: {
+    get t() { return arrival ? arrT : -1; },
+    get marks() { return arrival?.marks; },
+    get probe() { return arrival ? { ...arrival.probe } : null; },
+    /** QA: hold the sequence at time t (frame-by-frame review); play() resumes */
+    seek(t: number) { if (!arrival) return false; arrT = t; arrHeld = true; kick(); return true; },
+    play() { arrHeld = false; kick(); },
   } };
+  if (opts.arrival && !opts.reducedMotion) { if (!startArrival()) setArrivalState("done"); }
   kick();
 
   return {
     dispose() {
+      endArrival(true); // leaving the page mid-sequence must never leave the portrait dark
+      window.removeEventListener("swing-shift:arrival", onArrival);
       cancelAnimationFrame(raf);
       io.disconnect();
       ro.disconnect();

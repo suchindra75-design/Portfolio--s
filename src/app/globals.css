@@ -163,6 +163,22 @@ body {
   .pulse { animation: none; opacity: 1; }
 }
 
+/* ── THE ARRIVAL (docs/interactive/ARRIVAL.md) ──────────────────────────────────────────────
+   html[data-arrival]: "play" while the opening sequence runs in the hero's scene, "reveal" as his
+   portrait takes over from the figure, "done" after. While it plays the portrait is painted but
+   held almost invisible (so it is loaded and counted, and the figure in the scene behind it shows
+   through); the reticle waits and draws itself once he is revealed. The text and nav never wait. */
+html[data-arrival] .static { display: none; }
+html[data-arrival] .portrait-in { animation: none; opacity: 1; transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1); }
+/* failsafe: whatever happens to the script, the portrait comes up after 20 s */
+html[data-arrival="play"] .portrait-in { opacity: 0.01; transition-duration: 0.45s; animation: arrival-failsafe 0.8s ease 20s both; }
+@keyframes arrival-failsafe { from { opacity: 0.01; } to { opacity: 1; } }
+html[data-arrival] .reticle { transition: opacity 0.8s ease 0.35s; }
+html[data-arrival="play"] .reticle { opacity: 0; transition-delay: 0s; }
+html[data-arrival="play"] .reticle circle { animation: none; }
+html[data-arrival="reveal"] .reticle circle,
+html[data-arrival="done"] .reticle circle { animation: draw 1.6s cubic-bezier(0.6, 0, 0.2, 1) 0.4s forwards; }
+
 /* Once the visitor has found his face, the reticle locks on */
 .reveal[data-found="true"] ~ .reticle {
   filter: drop-shadow(0 0 5px rgba(227, 38, 43, 0.7));

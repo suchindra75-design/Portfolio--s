@@ -6,6 +6,7 @@ import { site } from "@/content/site";
 import { Clock } from "./Clock";
 import { isVerse } from "./Dimension";
 import { sfx } from "./Sfx";
+import { ArrivalControls } from "./Arrival";
 
 const NAME = "SUCHINDRA";
 const FROM = "SPIDERMAN"; // same length: the persona resolves, letter by letter, into the person
@@ -375,6 +376,9 @@ export function Hero() {
           <Clock short />
         </span>
       </div>
+
+      {/* The Arrival: skip it while it plays, replay it after (hero-web/arrival.ts) */}
+      <ArrivalControls />
 
       {/* How to use it: under the header on phones and tablets, bottom-right on roomy screens */}
       <div className="rise absolute left-5 top-[72px] z-[5] md:left-10 md:top-[96px] roomy:bottom-8 roomy:left-auto roomy:right-10 roomy:top-auto roomy:text-right" style={{ animationDelay: "2s" }}>

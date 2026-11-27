@@ -94,24 +94,38 @@ export function DimensionRoot() {
     };
     window.addEventListener("keydown", onKey);
     let t1 = 0, t2 = 0, t3 = 0;
+    let waitArrival: ((e: Event) => void) | null = null;
     let seen = true;
     try {
       seen = sessionStorage.getItem(HINTED) === "1";
     } catch {}
     if (!seen && location.pathname === "/") {
       const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      t1 = window.setTimeout(() => {
-        if (!reduce) {
-          // two frames of the other Earth
-          document.documentElement.dataset.flicker = "1";
-          t3 = window.setTimeout(() => delete document.documentElement.dataset.flicker, 170);
-        }
-        setHint(true);
-        try {
-          sessionStorage.setItem(HINTED, "1");
-        } catch {}
-      }, 3600);
-      t2 = window.setTimeout(() => setHint(false), 3600 + 7000);
+      const teaser = (delay: number) => {
+        t1 = window.setTimeout(() => {
+          if (!reduce) {
+            // two frames of the other Earth
+            document.documentElement.dataset.flicker = "1";
+            t3 = window.setTimeout(() => delete document.documentElement.dataset.flicker, 170);
+          }
+          setHint(true);
+          try {
+            sessionStorage.setItem(HINTED, "1");
+          } catch {}
+        }, delay);
+        t2 = window.setTimeout(() => setHint(false), delay + 7000);
+      };
+      // while the Arrival plays (hero-web/arrival.ts) the flicker waits for it to finish
+      const st = document.documentElement.dataset.arrival;
+      if (st === "play" || st === "reveal") {
+        waitArrival = (e: Event) => {
+          if ((e as CustomEvent<string>).detail !== "done") return;
+          window.removeEventListener("swing-shift:arrival-state", waitArrival!);
+          waitArrival = null;
+          teaser(1400);
+        };
+        window.addEventListener("swing-shift:arrival-state", waitArrival);
+      } else teaser(3600);
     }
     const close = () => setHint(false);
     window.addEventListener(DIMENSION_EVENT, close);
@@ -121,6 +135,7 @@ export function DimensionRoot() {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
       window.clearTimeout(t3);
+      if (waitArrival) window.removeEventListener("swing-shift:arrival-state", waitArrival);
     };
   }, []);
 

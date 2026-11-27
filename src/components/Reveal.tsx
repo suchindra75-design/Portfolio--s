@@ -55,7 +55,7 @@ export function Reveal({ className = "" }: { className?: string }) {
       last = t;
       // Subtle follow: the circle trails the cursor slightly; reduced motion snaps.
       const k = reduce ? 1 : 1 - Math.exp(-dt * 12);
-      const kr = reduce ? 1 : 1 - Math.exp(-dt * 8);
+      const kr = reduce ? 1 : 1 - Math.exp(-dt * (slow ? 2.6 : 8));
       x += (tx - x) * k;
       y += (ty - y) * k;
       r += (tr - r) * kr;
@@ -66,6 +66,7 @@ export function Reveal({ className = "" }: { className?: string }) {
       } else foundSince = 0;
       const settled = Math.abs(tx - x) < 1e-4 && Math.abs(ty - y) < 1e-4 && Math.abs(tr - r) < 1e-4;
       if (settled) {
+        slow = false;
         x = tx; y = ty; r = tr; paint();
         raf = 0; last = 0;
       } else raf = requestAnimationFrame(tick);
@@ -155,6 +156,22 @@ export function Reveal({ className = "" }: { className?: string }) {
       found = true; el.dataset.found = "true";
     };
 
+    // The Arrival (hero-web/arrival.ts) ends by unmasking him: the same whole-face reveal as the
+    // button, opened slowly (or at once when the intro is skipped). It stays until the visitor
+    // moves over the portrait or taps it, and from then on everything works as before.
+    let slow = false;
+    const onUnmask = (e: Event) => {
+      const snap = !!(e as CustomEvent<{ snap?: boolean }>).detail?.snap;
+      refresh();
+      tx = FACE_AT.x; ty = FACE_AT.y; tr = 0.62; pinned = true;
+      button.setAttribute("aria-pressed", "true");
+      x = tx; y = ty;
+      if (snap || reduce) { r = tr; paint(); } else { slow = true; kick(); }
+    };
+    const onMask = () => { tr = r = 0; pinned = false; slow = false; button.setAttribute("aria-pressed", "false"); paint(); };
+    window.addEventListener("swing-shift:unmask", onUnmask);
+    window.addEventListener("swing-shift:mask", onMask);
+
     // Stop when off screen; reset the reveal so it comes back masked.
     const io = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting && tr > 0) { tr = r = 0; pinned = false; button.setAttribute("aria-pressed", "false"); paint(); }
@@ -200,6 +217,8 @@ export function Reveal({ className = "" }: { className?: string }) {
       el.removeEventListener("touchcancel", onTouchEnd);
       button.removeEventListener("click", onButton);
       window.clearTimeout(warm);
+      window.removeEventListener("swing-shift:unmask", onUnmask);
+      window.removeEventListener("swing-shift:mask", onMask);
       window.removeEventListener("scroll", refresh);
       io.disconnect();
       ro.disconnect();

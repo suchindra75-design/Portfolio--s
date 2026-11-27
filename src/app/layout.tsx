@@ -5,6 +5,7 @@ import { site } from "@/content/site";
 import { Nav } from "@/components/Nav";
 import { SiteFooter } from "@/components/Sections";
 import { DimensionRoot, dimensionBootScript } from "@/components/Dimension";
+import { arrivalBootScript } from "@/components/Arrival";
 import { DropLine } from "@/components/DropLine";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { ScrollMotion } from "@/components/ScrollMotion";
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${serif.variable} ${mono.variable} ${comic.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: dimensionBootScript }} />
+        <script dangerouslySetInnerHTML={{ __html: arrivalBootScript }} />
       </head>
       <body>
         <a href="#main" className="label sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:bg-black focus:px-4 focus:py-3 focus:text-text">Skip to content</a>
