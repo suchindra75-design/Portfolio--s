@@ -8,6 +8,8 @@ import type { Project } from "@/content/projects";
 // the minis' code loads after the page, so the hero never waits for it
 const ProjectMini = dynamic(() => import("./minis").then((m) => m.ProjectMini), { ssr: false });
 const MINI = new Set(["raya", "infinos-telemetry", "brain-matrix", "simplein-school", "esp32-home-automation"]);
+/** Minis drawn on a light ground: held a little lower so they sit in the night gallery's exposure. */
+const LIGHT = new Set(["brain-matrix", "simplein-school"]);
 
 /**
  * What hangs in each frame of the gallery (Phase 4, docs/interactive/PHASE4-DARKROOM-LINE.md).
@@ -19,12 +21,12 @@ const MINI = new Set(["raya", "infinos-telemetry", "brain-matrix", "simplein-sch
 
 /** The one line under the active frame: what a reviewer must know before trusting the picture. */
 export const NOTES: Record<string, { lead: string; rest: string }> = {
-  raya: { lead: "Built on MARK XLIX · FatihMakes", rest: "an animation of its voice states" },
+  raya: { lead: "Built on MARK XLIX · FatihMakes", rest: "an animation of its real voice states, not a screenshot" },
   infinos: { lead: "Provisional 3D model", rest: "awaiting INFINOS Tech’s approval · © INFINOS Tech" },
-  "infinos-telemetry": { lead: "Hosted demo offline", rest: "recorded data, replayed · © INFINOS Tech" },
-  "brain-matrix": { lead: "Research use only", rest: "an illustration with a synthetic signal" },
-  "simplein-school": { lead: "Staging demo", rest: "an illustration of its system plan" },
-  "esp32-home-automation": { lead: "Concept", rest: "an illustration, not a build · the firmware isn’t available" },
+  "infinos-telemetry": { lead: "Hosted demo offline", rest: "recorded data replayed, not live · © INFINOS Tech" },
+  "brain-matrix": { lead: "Research use only", rest: "an EEG signal visualisation, drawn with a synthetic signal" },
+  "simplein-school": { lead: "Staging demo", rest: "a drawing of its system architecture, not a screenshot" },
+  "esp32-home-automation": { lead: "Concept", rest: "an illustration of the idea, not working hardware · the firmware isn’t available" },
 };
 
 /** INFINOS: 20–27 s of the owner's desktop recording of the website (the inner box lifting out). */
@@ -39,7 +41,14 @@ const SIZES = "(min-width:1024px) 60vw, (min-width:720px) 70vw, 82vw";
 export function FrameMedia({ p, eager, video, live = true, mount = true }: { p: Project; eager?: boolean; video?: React.Ref<HTMLVideoElement>; live?: boolean; mount?: boolean }) {
   let media: React.ReactNode;
   if (MINI.has(p.slug)) {
-    media = mount ? <ProjectMini slug={p.slug} title={p.title} live={live} /> : null;
+    media = (
+      <>
+        {mount ? <ProjectMini slug={p.slug} title={p.title} live={live} /> : null}
+        {LIGHT.has(p.slug) && <span aria-hidden="true" className="dl-ground" />}
+        {/* the ESP32 house shows an idea, not hardware: it says so on the picture itself */}
+        {p.slug === "esp32-home-automation" && <span className="dl-flag">Concept · not a build</span>}
+      </>
+    );
   } else if (p.slug === "infinos") {
     media = (
       <video

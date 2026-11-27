@@ -799,6 +799,15 @@ video.dl-media__el { object-position: center; }
   .dl-ticks, .dl-note, .dl-name { transition: none; }
 }
 
+/* a parked frame (Rail.tsx warm-up) keeps only its picture; its text stays out of find-in-page */
+.dl-frame[data-parked] .dl-note, .dl-frame[data-parked] .dl-name { visibility: hidden; }
+
 /* the animated minis (./showcase/minis): their own type hooks, mapped to this site's fonts */
+.dl-ground { position: absolute; inset: 0; background: #000; opacity: 0.16; pointer-events: none; }
+.dl-flag {
+  position: absolute; left: 14px; top: 14px; z-index: 2; padding: 0.35em 0.6em;
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--color-text); background: rgb(0 0 0 / 0.6); border: 1px solid rgb(239 58 63 / 0.7);
+}
 .dl { --font-display: var(--font-serif); }
 .dl .t-label { font-family: var(--font-mono); font-size: 0.6875rem; line-height: 1.5; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; }

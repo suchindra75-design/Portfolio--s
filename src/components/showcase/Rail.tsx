@@ -84,6 +84,7 @@ export function Rail() {
   // started, a mini stays
   const [mounted, setMounted] = useState(0);
   const handover = useRef<() => void>(() => {});
+  const warmSoon = useRef<() => void>(() => {});
   const stage = useRef<HTMLDivElement>(null);
   const rail = useRef<SVGPathElement>(null);
   const fallback = useRef<SVGPathElement>(null);
@@ -98,6 +99,8 @@ export function Rail() {
     develop: 1, inView: false, reduce: false, mobile: false,
     W: 1, printW: 1, A: anchorsFor(1, 0.34, 0.22, 50, 36),
     drag: null as null | { x: number; y: number; id: number; moved: boolean; start: number; lastT: number },
+    // the warm-up (see tryWarm): frames being drawn once at full size, and frames already drawn so
+    warming: 0, warmed: 0,
   });
 
   const paint = useCallback(() => {
@@ -112,6 +115,19 @@ export function Rail() {
       const cx = W / 2 + pl.x, ny = RAIL_Y + sagAt(cx);
       const lift = s.hover === i && pl.d > 0.4 && !s.mobile ? -6 : 0;
       o.frame.style.width = `${printW}px`;
+      if ((s.warming & (1 << i)) || (s.warmed & (1 << i) && pl.d > 3.1)) {
+        // parked: an out-of-sight frame waits in the front slot at full size, at an opacity nobody
+        // can see and without taking clicks, so the browser keeps its full-size copy ready
+        o.frame.style.transform = `translate3d(${(W / 2 - printW / 2).toFixed(2)}px, ${(RAIL_Y + DROP).toFixed(2)}px, 0) scale(1)`;
+        o.frame.style.opacity = "0.004";
+        o.frame.style.visibility = "";
+        o.frame.style.zIndex = "30";
+        o.frame.style.pointerEvents = "none";
+        o.frame.setAttribute("data-parked", ""); // its note and name hide, so find-in-page skips them
+        return;
+      }
+      o.frame.style.pointerEvents = "";
+      o.frame.removeAttribute("data-parked");
       o.frame.style.transform = `translate3d(${(cx - printW / 2).toFixed(2)}px, ${(ny + DROP + lift).toFixed(2)}px, 0) scale(${pl.s.toFixed(4)})`;
       o.frame.style.opacity = pl.d > 3.1 ? "0" : "1";
       o.frame.style.visibility = pl.d > 3.4 ? "hidden" : "";
@@ -195,7 +211,11 @@ export function Rail() {
         // hand the animation to the new front frame in idle time, unless the rail moves again first
         handover.current();
         const k = Math.round(s.target);
-        handover.current = whenIdle(() => { if (!st.current.raf) setSettled(k); }, 500);
+        handover.current = whenIdle(() => {
+          if (st.current.raf) return;
+          setSettled(k);
+          warmSoon.current();
+        }, 500);
       }
     },
     [paint],
@@ -246,6 +266,7 @@ export function Rail() {
 
     const geometry = () => {
       const W = el.clientWidth;
+      if (W !== s.W) s.warmed = 0; // a new frame size needs a new full-size copy
       s.W = W;
       s.mobile = W < 720;
       if (W < 720) {
@@ -259,7 +280,7 @@ export function Rail() {
         s.printW = Math.min(W * 0.6, 900, Math.max(440, (window.innerHeight - 400) / 0.625));
         s.A = anchorsFor(s.printW, 0.34, 0.22, 50, 36);
       }
-      el.style.height = `${Math.round(RAIL_Y + DROP + s.printW * 0.625 + (s.mobile ? 52 : 58))}px`;
+      el.style.height = `${Math.round(RAIL_Y + DROP + s.printW * 0.625 + (s.mobile ? 74 : 58))}px`; // phones: room for a three-line note
     };
 
     // the darkroom moment: the frames arrive as dark exposures and develop as the rail rises.
@@ -292,7 +313,45 @@ export function Rail() {
     const ro = new ResizeObserver(() => { geometry(); measure(); s.develop = develop(); paint(); });
     ro.observe(el);
     ro.observe(document.body); // content above the gallery changing height moves it
-    const io = new IntersectionObserver(([e]) => { s.inView = e.isIntersecting; paint(); });
+    /**
+     * First-entry warm-up. The first time a frame grows from neighbour size to full size, the
+     * browser redraws its vector drawing (the SIMPLEIN plan, the ESP32 house) at every new scale,
+     * which cost 50–80 ms frames on the Intel GPU; once a full-size copy exists, growing is free.
+     * So, while the gallery is on screen and still, frames that are out of sight (fully
+     * transparent, more than three places from the front) are drawn at full size at 0.4% opacity
+     * and then stay parked like that (see paint) while they are out of sight: a hidden frame
+     * loses its drawn copy. Nothing visible changes. Frames that are already visible as
+     * neighbours can't be warmed this way without showing it; they keep the old cost once.
+     */
+    let wraf = 0, cancelWarm = () => {};
+    const tryWarm = () => {
+      if (s.warming) return; // a pass is running; it schedules the next one when it ends
+      if (!s.inView || s.raf || s.drag) return; // tried again on view, settle and mount
+      let mask = 0;
+      els.current.forEach((o, i) => {
+        if (s.warmed & (1 << i) || !o.media?.querySelector("canvas, svg")) return;
+        if (place(i - s.pos, s.A).d > 3.1) mask |= 1 << i;
+      });
+      if (!mask) return;
+      s.warming = mask;
+      paint();
+      let k = 0;
+      const step = () => {
+        if (++k < 4) { wraf = requestAnimationFrame(step); return; }
+        wraf = 0;
+        s.warmed |= mask;
+        s.warming = 0;
+        paint();
+        warmSoon.current(); // pick up any frame that became ready during this pass
+      };
+      wraf = requestAnimationFrame(step);
+    };
+    warmSoon.current = () => { cancelWarm(); cancelWarm = whenIdle(tryWarm, 1000); };
+    const io = new IntersectionObserver(([e]) => {
+      s.inView = e.isIntersecting;
+      paint();
+      if (s.inView) warmSoon.current();
+    });
     io.observe(el);
     let cancelMount = () => {};
     let bits = 0;
@@ -300,9 +359,10 @@ export function Rail() {
       const here = Math.round(st.current.pos);
       let pick = -1;
       for (let i = 0; i < N; i++) if (!(bits & (1 << i)) && (pick < 0 || Math.abs(i - here) < Math.abs(pick - here))) pick = i;
-      if (pick < 0) return;
+      if (pick < 0) { warmSoon.current(); return; } // all started: one more warm-up pass
       bits |= 1 << pick;
       setMounted(bits);
+      warmSoon.current(); // runs after this mini has had time to draw
       cancelMount = whenIdle(next, 1200);
     };
     const mountLater = () => { cancelMount = whenIdle(next, 1200); };
@@ -387,6 +447,8 @@ export function Rail() {
       io.disconnect();
       window.removeEventListener("scroll", mountLater);
       cancelMount();
+      cancelWarm();
+      cancelAnimationFrame(wraf);
       handover.current();
       cancelAnimationFrame(s.raf);
       cancelAnimationFrame(sraf);

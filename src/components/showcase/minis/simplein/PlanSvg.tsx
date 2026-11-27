@@ -61,7 +61,9 @@ export function PlanSvg({
 }) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const full = variant !== "mini";
-  const anim = variant !== "fallback";
+  // Swing Shift: the mini rests fully drawn (no draw-in intro), so a neighbour is never blank and
+  // arriving at the front never blanks it; its pulses still run while it is in front
+  const anim = variant !== "fallback" && variant !== "mini";
   const { ink, accent, accent2, muted } = colors;
   const hair = full ? 0.07 : 0.11;
   const delay = (s: number) => ({ "--d": `${s}s` }) as CSSProperties;

@@ -10,7 +10,7 @@ import { APRICOT, SILVER, bandsAt, drawRibbon, rgba, speechLevel, type RibbonSta
 const CYCLE: { state: RibbonState; word: string; caption: string; dur: number }[] = [
   { state: "listening", word: "Listening", caption: "Go ahead — I’m listening.", dur: 3.4 },
   { state: "processing", word: "Thinking", caption: "Working on it…", dur: 1.5 },
-  { state: "speaking", word: "Speaking", caption: "Visual Studio Code is open.", dur: 2.8 },
+  { state: "speaking", word: "Speaking", caption: "", dur: 2.8 }, // the app shows no caption while it speaks
   { state: "ready", word: "Ready", caption: "Speak or type a message.", dur: 1.2 },
 ];
 const PERIOD = CYCLE.reduce((s, c) => s + c.dur, 0);
